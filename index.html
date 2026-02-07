@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام البونص الاحترافي V10 - مع معالجة المرتجعات</title>
+<title>نظام البونص الاحترافي V11 - محدث</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -123,6 +123,14 @@
             <div class="card" style="background:#7f8c8d; max-width: 300px;">
                 <h3>بونص تحت التحصيل</h3>
                 <div id="stat-suspended-bonus" class="card-val">0.00</div>
+            </div>
+            <div class="card" style="background:#c0392b; max-width: 300px;">
+                <h3>فواتير آجلة غير مدفوعة</h3>
+                <div id="stat-delayed-count" class="card-val">0</div>
+            </div>
+            <div class="card" style="background:#27ae60; max-width: 300px;">
+                <h3>فواتير آجلة مدفوعة</h3>
+                <div id="stat-delayed-paid" class="card-val">0</div>
             </div>
         </div>
 
@@ -533,6 +541,12 @@
         
         let totalSuspended = filtered.reduce((a,b)=>a+b.bonus,0);
         document.getElementById('stat-suspended-bonus').innerText = totalSuspended.toLocaleString();
+        
+        // حساب عدد الفواتير الآجلة (غير مدفوعة ومدفوعة)
+        const delayedUnpaid = filtered.filter(r => !r.isManual && r.status === 'Approved').length;
+        const delayedPaid = filtered.filter(r => !r.isManual && r.status === 'Paid').length;
+        document.getElementById('stat-delayed-count').innerText = delayedUnpaid;
+        document.getElementById('stat-delayed-paid').innerText = delayedPaid;
 
         if(filtered.length === 0) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center">لا توجد فواتير معلقة</td></tr>'; return; }
 
@@ -549,11 +563,16 @@
                 // فاتورة آجلة
                 if (r.status === 'Paid') {
                     actionBtn = `<span style="color:#27ae60"><i class="fas fa-check-circle"></i> مدفوعة</span>`;
-                    reason = "آجلة مدفوعة (ستدخل البونص في شهر السداد)";
+                    reason = "مدفوعة (ستدخل البونص في شهر السداد)";
                     reasonBadge = "badge-base";
+                } else if (r.status === 'Approved') {
+                    actionBtn = `<span style="color:#e74c3c"><i class="fas fa-clock"></i> آجلة</span>`;
+                    reason = "آجلة - غير مدفوعة (لن تدخل البونص حتى السداد)";
+                    reasonBadge = "badge-pending";
                 } else {
-                    actionBtn = `<span style="color:#e74c3c"><i class="fas fa-clock"></i> غير مدفوعة</span>`;
-                    reason = "آجلة غير مدفوعة (لن تدخل البونص حتى السداد)";
+                    // حالات أخرى (Draft, Cancelled, etc.)
+                    actionBtn = `<span style="color:#95a5a6"><i class="fas fa-question-circle"></i> ${r.status}</span>`;
+                    reason = `حالة: ${r.status}`;
                     reasonBadge = "badge-pending";
                 }
             }
