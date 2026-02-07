@@ -2,12 +2,11 @@ import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
     const API_KEY = process.env.QOYOD_API_KEY;
-    
-    // استلام الشهر المطلوب من الرابط (مثلاً 2023-11)
-    const targetMonth = req.query.month; 
+    const targetMonth = req.query.month; // استقبال الشهر من الرابط
 
+    // 1. التأكد من وجود المفتاح
     if (!API_KEY) {
-        return res.status(500).json({ error: "API Key missing" });
+        return res.status(500).json({ error: "API Key missing. Check Vercel Environment Variables." });
     }
 
     const headers = {
@@ -16,51 +15,70 @@ export default async function handler(req, res) {
     };
 
     try {
-        // --- 1. إعداد تواريخ الفلترة ---
-        let dateQuery = "";
+        // --- إعداد تواريخ الفلترة بدقة ---
+        let startDate = "";
+        let endDate = "";
+
         if (targetMonth) {
-            // حساب أول يوم وآخر يوم في الشهر المحدد
             const [year, month] = targetMonth.split('-');
-            const startDate = `${year}-${month}-01`;
-            // خدعة لحساب آخر يوم في الشهر
+            // اليوم الأول
+            startDate = `${year}-${month}-01`;
+            // اليوم الأخير (حيلة برمجية: اليوم 0 من الشهر القادم هو آخر يوم في الشهر الحالي)
+            // نستخدم new Date للتأكد من عدد أيام الشهر (28، 30، أو 31)
             const lastDay = new Date(year, month, 0).getDate(); 
-            const endDate = `${year}-${month}-${lastDay}`;
-            
-            // إضافة فلتر التاريخ لرابط قيود
-            dateQuery = `&q[issue_date_gteq]=${startDate}&q[issue_date_lteq]=${endDate}`;
+            endDate = `${year}-${month}-${lastDay}`;
         }
 
-        // --- 2. روابط API ---
+        // --- بناء الروابط بشكل آمن (URL Construction) ---
+        // نستخدم URLSearchParams لضمان أن الأقواس [] والرموز تُرسل بشكل صحيح 100%
         
-        // أ) الفواتير: نجلب المدفوعة والمعتمدة + فلتر التاريخ + رفع الحد لـ 2000 (للأمان داخل الشهر الواحد)
-        const invUrl = `https://www.qoyod.com/api/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Approved${dateQuery}&limit=2000`;
+        // 1. رابط الفواتير
+        const invParams = new URLSearchParams();
+        invParams.append("q[status_in][]", "Paid");
+        invParams.append("q[status_in][]", "Approved");
+        invParams.append("limit", "2000"); // حد آمن جداً لشهر واحد
 
-        // ب) المنتجات (لجلب الأسعار الأساسية)
+        if (startDate && endDate) {
+            invParams.append("q[issue_date_gteq]", startDate); // أكبر من أو يساوي البداية
+            invParams.append("q[issue_date_lteq]", endDate);   // أصغر من أو يساوي النهاية
+        }
+
+        const invUrl = `https://www.qoyod.com/api/2.0/invoices?${invParams.toString()}`;
+
+        // 2. رابط المنتجات
         const prodUrl = "https://www.qoyod.com/api/2.0/products?limit=2000";
 
-        // ج) الوحدات (للربط التلقائي للكرتون)
+        // 3. رابط الوحدات
         const unitsUrl = "https://www.qoyod.com/api/2.0/product_units?limit=500";
 
-        // تنفيذ الطلبات
+        // --- تنفيذ الطلبات ---
+        // console.log("Fetching URL:", invUrl); // (لأغراض التصحيح في سجلات Vercel)
+
         const [invRes, prodRes, unitsRes] = await Promise.all([
             fetch(invUrl, { headers }),
             fetch(prodUrl, { headers }),
-            fetch(unitsUrl, { headers }).catch(err => ({ ok: false }))
+            fetch(unitsUrl, { headers }).catch(e => ({ ok: false }))
         ]);
 
-        if (!invRes.ok || !prodRes.ok) {
-            throw new Error("فشل الاتصال بقيود");
+        if (!invRes.ok) {
+            const errText = await invRes.text();
+            throw new Error(`خطأ في جلب الفواتير من قيود: ${invRes.status} - ${errText}`);
+        }
+        if (!prodRes.ok) {
+            throw new Error("خطأ في جلب المنتجات من قيود");
         }
 
         const invData = await invRes.json();
         const prodData = await prodRes.json();
         
+        // جلب الوحدات إذا نجح
         let unitsList = [];
         if (unitsRes.ok) {
             const unitsData = await unitsRes.json();
             unitsList = unitsData.product_units || [];
         }
 
+        // تجهيز خريطة المنتجات
         const productsMap = {};
         if (prodData.products) {
             prodData.products.forEach(p => {
@@ -72,14 +90,16 @@ export default async function handler(req, res) {
             });
         }
 
+        // إرجاع البيانات
         return res.status(200).json({
             invoices: invData.invoices || [],
             productsMap: productsMap,
-            product_units: unitsList
+            product_units: unitsList,
+            debug_date: { start: startDate, end: endDate } // للتأكد من التاريخ
         });
 
     } catch (err) {
-        console.error("Server Error:", err);
+        console.error("SERVER ERROR:", err.message);
         return res.status(500).json({ error: err.message });
     }
 }
