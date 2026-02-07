@@ -1,0 +1,12 @@
+{
+  "name": "qoyod-bonus-system",
+  "version": "1.0.0",
+  "description": "نظام عمولات قيود",
+  "main": "index.html",
+  "scripts": {
+    "start": "servor"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.0"
+  }
+}
