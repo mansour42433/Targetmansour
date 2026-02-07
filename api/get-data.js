@@ -39,18 +39,16 @@ export default async function handler(req, res) {
         const invUrl = `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid${dateParams}&limit=2000`;
         const prodUrl = "https://api.qoyod.com/2.0/products?limit=2000";
         const unitsUrl = "https://api.qoyod.com/2.0/product_units?limit=500";
-        const creditNotesUrl = `https://api.qoyod.com/2.0/credit_notes?${dateParams.replace('issue_date', 'date')}&limit=2000`; // إشعارات الدائن (المرتجعات)
 
         // 4. التنفيذ (استخدام fetch المدمج)
         // نستخدم Promise.allSettled لكي لا ينهار الكود لو فشل رابط واحد (مثل الوحدات)
         const results = await Promise.allSettled([
             fetch(invUrl, { headers }),
             fetch(prodUrl, { headers }),
-            fetch(unitsUrl, { headers }),
-            fetch(creditNotesUrl, { headers }) // إضافة إشعارات الدائن
+            fetch(unitsUrl, { headers })
         ]);
 
-        const [invRes, prodRes, unitsRes, creditNotesRes] = results;
+        const [invRes, prodRes, unitsRes] = results;
 
         // 5. التحقق من الفواتير (إجباري)
         if (invRes.status === 'rejected' || !invRes.value.ok) {
@@ -74,13 +72,6 @@ export default async function handler(req, res) {
             const unitsData = await unitsRes.value.json();
             unitsList = unitsData.product_units || [];
         }
-        
-        // إشعارات الدائن (اختياري - لو فشل لن يوقف النظام)
-        let creditNotesList = [];
-        if (creditNotesRes.status === 'fulfilled' && creditNotesRes.value.ok) {
-            const creditNotesData = await creditNotesRes.value.json();
-            creditNotesList = creditNotesData.credit_notes || [];
-        }
 
         // تجهيز المنتجات
         const productsMap = {};
@@ -97,8 +88,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
             invoices: invData.invoices || [],
             productsMap: productsMap,
-            product_units: unitsList,
-            credit_notes: creditNotesList // إضافة إشعارات الدائن
+            product_units: unitsList
         });
 
     } catch (err) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام البونص الاحترافي V11 - محدث</title>
+<title>نظام البونص الاحترافي V12 - مع معالجة المرتجعات</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -280,17 +280,9 @@
                  });
             }
             
-            // معالجة إشعارات الدائن (المرتجعات)
-            creditNotesMap = {};
-            if(data.credit_notes) {
-                data.credit_notes.forEach(cn => {
-                    const invId = cn.invoice_id;
-                    if(!invId) return; // تجاهل إشعارات غير مرتبطة بفاتورة
-                    
-                    if(!creditNotesMap[invId]) creditNotesMap[invId] = [];
-                    creditNotesMap[invId].push(cn);
-                });
-            }
+            // معالجة إشعارات الدائن (المرتجعات) من allocations
+            // سنجلب تفاصيل Credit Notes عند الحاجة بناءً على allocations في الفاتورة
+            creditNotesMap = {}; // سيتم ملؤه لاحقاً من الفواتير
 
             // تحديث قائمة المناديب
             creatorsList = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
@@ -364,16 +356,32 @@
 
             // ج) حساب البونص لكل سطر (مع خصم المرتجعات)
             
-            // حساب المرتجعات لهذه الفاتورة
+            // حساب المرتجعات لهذه الفاتورة من allocations
             const returnedQtyMap = {}; // {product_id: total_returned_qty}
-            if(creditNotesMap[inv.id]) {
-                creditNotesMap[inv.id].forEach(cn => {
-                    if(!cn.line_items) return;
-                    cn.line_items.forEach(cnItem => {
-                        const pid = cnItem.product_id;
-                        const returnedQty = Math.abs(parseFloat(cnItem.quantity || 0)); // الكمية المرجعة (موجبة دائماً)
-                        returnedQtyMap[pid] = (returnedQtyMap[pid] || 0) + returnedQty;
-                    });
+            
+            // فحص allocations لمعرفة إذا كان هناك إشعارات دائن مربوطة
+            if(inv.allocations && inv.allocations.length > 0) {
+                inv.allocations.forEach(alloc => {
+                    // فقط إشعارات الدائن (Credit Notes)
+                    if(alloc.source_type === 'CreditNote') {
+                        // ملاحظة: allocations تحتوي فقط على المبلغ وليس التفاصيل
+                        // لذلك سنفترض أن المبلغ يمثل قيمة المرتجعات
+                        // وسنحسب الكمية المرجعة بناءً على نسبة المبلغ
+                        const creditAmount = parseFloat(alloc.amount || 0);
+                        const invoiceTotal = parseFloat(inv.total || 0);
+                        
+                        if(invoiceTotal > 0) {
+                            const returnRatio = creditAmount / invoiceTotal; // نسبة المرتجع
+                            
+                            // تطبيق النسبة على كل منتج في الفاتورة
+                            inv.line_items.forEach(item => {
+                                const pid = item.product_id;
+                                const itemQty = parseFloat(item.quantity || 0);
+                                const returnedQty = itemQty * returnRatio;
+                                returnedQtyMap[pid] = (returnedQtyMap[pid] || 0) + returnedQty;
+                            });
+                        }
+                    }
                 });
             }
             
