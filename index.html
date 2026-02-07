@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام البونص الشامل (مع الفواتير المعلقة)</title>
+<title>نظام البونص الاحترافي V8</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -14,6 +14,7 @@
     body{font-family:'Cairo', sans-serif; background:var(--bg); padding:20px; color: var(--p);}
     .box{background:#fff;padding:0;border-radius:15px;max-width:1400px;margin:auto;box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden;}
     
+    /* Tabs */
     .tabs-header {display: flex; background: var(--p); color: #fff;}
     .tab-btn {padding: 15px 25px; cursor: pointer; background: transparent; border: none; color: #ccc; font-family: 'Cairo'; font-weight: bold; font-size: 1.1em; transition: 0.3s;}
     .tab-btn:hover {color: #fff; background: rgba(255,255,255,0.1);}
@@ -21,94 +22,76 @@
     .tab-content {display: none; padding: 20px;}
     .tab-content.active {display: block;}
 
+    /* Inputs & Buttons */
     .input-grp {margin-bottom: 10px;}
     .input-grp label {display: block; font-weight: bold; font-size: 0.85em; margin-bottom: 5px;}
-    .input-grp input, .input-grp select {padding: 8px; border: 1px solid #ccc; border-radius: 5px; width: 200px;}
+    .input-grp input, .input-grp select {padding: 8px; border: 1px solid #ccc; border-radius: 5px; width: 200px; font-family: 'Cairo';}
     
-    .calc-btn {background: var(--acc); color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;}
-    .save-btn {background: var(--g); color: #fff; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;}
-    .exclude-btn {background: #fff; color: var(--r); border: 1px solid var(--r); padding: 4px 8px; font-size: 0.8em; cursor: pointer; border-radius: 4px;}
+    .calc-btn {background: var(--acc); color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; transition: 0.3s;}
+    .calc-btn:hover {background: #1a5276;}
+    .calc-btn:disabled {background: #bdc3c7; cursor: not-allowed;}
+
+    .save-btn {background: var(--g); color: #fff; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-family: 'Cairo';}
+    
+    .exclude-btn {background: #fff; color: var(--r); border: 1px solid var(--r); padding: 4px 8px; font-size: 0.8em; cursor: pointer; border-radius: 4px; transition: 0.2s;}
+    .exclude-btn:hover {background: var(--r); color: #fff;}
     .exclude-btn.active {background: var(--r); color: #fff;}
+
     .restore-btn {background: var(--g); color: #fff; border: none; padding: 4px 8px; font-size: 0.8em; cursor: pointer; border-radius: 4px;}
 
+    /* Tables */
     table {width: 100%; border-collapse: collapse; min-width: 1000px;}
-    th {background: #f8f9fa; padding: 12px; text-align: right; border-bottom: 2px solid #ddd; position: sticky; top: 0;}
+    th {background: #f8f9fa; padding: 12px; text-align: right; border-bottom: 2px solid #ddd; position: sticky; top: 0; z-index: 10;}
     td {padding: 10px 12px; border-bottom: 1px solid #eee; vertical-align: middle;}
     .table-responsive {overflow-x: auto; max-height: 600px;}
 
-    .tbl-input {width: 80px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center;}
+    .tbl-input {width: 80px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-family: 'Cairo';}
     
-    .badge {padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: bold;}
+    /* Badges */
+    .badge {padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: bold; display: inline-block;}
     .badge-premium {background: #d4edda; color: #155724; border: 1px solid #c3e6cb;} 
     .badge-base {background: #fff3cd; color: #856404; border: 1px solid #ffeeba;} 
-    .badge-pending {background: #fdeaea; color: #c0392b; border: 1px solid #f5c6cb;}
+    .badge-low {background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;}
+    .badge-pending {background: #e2e3e5; color: #383d41; border: 1px solid #d6d8db;}
     
-    .stats {display: flex; gap: 20px; margin-bottom: 20px;}
-    .card {background: var(--p); color: #fff; padding: 15px; border-radius: 10px; flex: 1; text-align: center;}
-    .card-val {font-size: 1.5em; font-weight: bold;}
+    /* Stats Cards */
+    .stats {display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;}
+    .card {background: var(--p); color: #fff; padding: 20px; border-radius: 10px; flex: 1; text-align: center; min-width: 200px;}
+    .card h3 {margin: 0 0 10px 0; font-size: 1em; opacity: 0.9;}
+    .card-val {font-size: 1.8em; font-weight: bold;}
+    
+    /* Alert Box */
+    .alert-box {background:#eafaf1; padding:15px; border-radius:8px; border:1px solid #abdde5; color:#2c3e50; margin-bottom: 15px; font-size: 0.95em;}
 </style>
 </head>
 <body>
 
 <div class="box">
     <div class="tabs-header">
-        <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-check-circle"></i> البونص المستحق</button>
-        <button class="tab-btn" onclick="switchTab('suspended')"><i class="fas fa-clock"></i> الفواتير المعلقة (آجل)</button>
+        <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-wallet"></i> البونص المستحق</button>
+        <button class="tab-btn" onclick="switchTab('suspended')"><i class="fas fa-pause-circle"></i> المعلق (الآجل)</button>
         <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-tags"></i> إعدادات الأسعار</button>
         <button class="tab-btn" onclick="switchTab('targets')"><i class="fas fa-bullseye"></i> التارجت</button>
     </div>
 
     <div id="tab-main" class="tab-content active">
-        <div style="display:flex; gap:15px; align-items:flex-end; margin-bottom:20px; flex-wrap:wrap;">
+        <div style="display:flex; gap:15px; align-items:flex-end; margin-bottom:20px; flex-wrap:wrap; background: #f8f9fa; padding: 15px; border-radius: 10px;">
             <div class="input-grp">
-                <label>المندوب</label>
-                <select id="creatorFilter" onchange="renderMainTable()"><option value="all">الكل</option></select>
-            </div>
-            <div class="input-grp">
-                <label>الشهر</label>
+                <label>الشهر المستهدف</label>
                 <input type="month" id="targetMonth">
             </div>
-            <button onclick="fetchAndCalculate()" class="calc-btn"><i class="fas fa-sync-alt"></i> تحديث وحساب</button>
-            <button onclick="exportToExcel()" class="save-btn" style="background:#27ae60"><i class="fas fa-file-excel"></i> تصدير</button>
+            <div class="input-grp">
+                <label>تصفية بالمندوب</label>
+                <select id="creatorFilter" onchange="renderMainTable()"><option value="all">الكل</option></select>
+            </div>
+            <button onclick="fetchAndCalculate()" class="calc-btn"><i class="fas fa-sync-alt"></i> جلب وحساب</button>
+            <button onclick="exportToExcel()" class="save-btn" style="background:#27ae60"><i class="fas fa-file-excel"></i> تصدير التقرير</button>
         </div>
 
         <div class="stats">
-            <div class="card"><h3>مبيعات (مدفوعة/كاش)</h3><div id="stat-sales" class="card-val">0</div></div>
-            <div class="card" style="background:var(--acc)"><h3>البونص النهائي</h3><div id="stat-bonus" class="card-val">0</div></div>
-            <div class="card" style="background:#e67e22"><h3>حالة التارجت</h3><div id="stat-target" class="card-val">-</div></div>
-        </div>
-
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>تحكم</th>
-                        <th>المرجع</th>
-                        <th>المندوب</th>
-                        <th>المنتج</th>
-                        <th>الكمية</th>
-                        <th>سعر البيع</th>
-                        <th>تصنيف السعر</th>
-                        <th>النسبة</th>
-                        <th>البونص</th>
-                    </tr>
-                </thead>
-                <tbody id="mainRows"><tr><td colspan="9" style="text-align:center">اضغط تحديث</td></tr></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="tab-suspended" class="tab-content">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background:#fff3cd; padding:15px; border-radius:8px; border:1px solid #ffeeba; color:#856404;">
-            <div>
-                <i class="fas fa-info-circle"></i> <strong>الفواتير المعلقة:</strong>
-                هذه الفواتير إما "آجلة لم تسدد بعد" أو قمت باستثنائها يدوياً.
-                <br> لن يتم صرف البونص الخاص بها حتى تتحول حالتها إلى <b>Paid</b>.
-            </div>
-            <div style="text-align:center">
-                <small>بونص "متوقع" معلق</small>
-                <div id="stat-suspended-bonus" style="font-size:1.5em; font-weight:bold;">0.00</div>
-            </div>
+            <div class="card"><h3>المبيعات المحققة</h3><div id="stat-sales" class="card-val">0</div></div>
+            <div class="card" style="background:var(--acc)"><h3>صافي البونص</h3><div id="stat-bonus" class="card-val">0</div></div>
+            <div class="card" style="background:#e67e22"><h3>حالة التارجت</h3><div id="stat-target" class="card-val" style="font-size:1.2em">-</div></div>
         </div>
 
         <div class="table-responsive">
@@ -119,41 +102,78 @@
                         <th>المرجع</th>
                         <th>المندوب</th>
                         <th>المنتج</th>
-                        <th>الحالة</th>
-                        <th>النوع</th>
+                        <th>الكمية</th>
+                        <th>سعر البيع</th>
+                        <th>الشريحة</th>
+                        <th>النسبة</th>
+                        <th>البونص</th>
+                    </tr>
+                </thead>
+                <tbody id="mainRows"><tr><td colspan="9" style="text-align:center; padding: 20px;">اختر الشهر ثم اضغط "جلب وحساب"</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-suspended" class="tab-content">
+        <div class="alert-box" style="background:#fff3cd; color:#856404; border-color:#ffeeba;">
+            <i class="fas fa-info-circle"></i> <strong>قائمة الانتظار:</strong>
+            هذه الفواتير (آجلة غير مسددة) أو (مستثناة يدوياً). لن يتم صرف البونص الخاص بها حتى تتحول حالتها إلى <b>Paid</b> أو تلغي استثنائها.
+        </div>
+        <div class="stats">
+            <div class="card" style="background:#7f8c8d; max-width: 300px;">
+                <h3>بونص تحت التحصيل</h3>
+                <div id="stat-suspended-bonus" class="card-val">0.00</div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>تحكم</th>
+                        <th>المرجع</th>
+                        <th>المندوب</th>
+                        <th>المنتج</th>
+                        <th>سبب التعليق</th>
                         <th>البونص المتوقع</th>
                     </tr>
                 </thead>
-                <tbody id="suspendedRows"><tr><td colspan="7" style="text-align:center">لا توجد فواتير معلقة</td></tr></tbody>
+                <tbody id="suspendedRows"><tr><td colspan="6" style="text-align:center">لا توجد فواتير معلقة</td></tr></tbody>
             </table>
         </div>
     </div>
 
     <div id="tab-products" class="tab-content">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-            <h3><i class="fas fa-sliders-h"></i> إعدادات شرائح الأسعار</h3>
+            <h3><i class="fas fa-sliders-h"></i> شرائح الأسعار والكرتون</h3>
             <button onclick="saveProductSettings()" class="save-btn"><i class="fas fa-save"></i> حفظ الإعدادات</button>
+        </div>
+        <div class="alert-box">
+            <i class="fas fa-lightbulb"></i> <strong>الدليل:</strong><br>
+            1. <b>معامل الكرتون:</b> إذا تم جلبه من قيود سيظهر، وإلا ضعه يدوياً.<br>
+            2. <b>سعر التميز:</b> السعر الذي يستحق النسبة العالية (مثلاً 73).<br>
+            3. <b>السعر الأساسي:</b> أقل سعر مقبول للنسبة العادية (مثلاً 70).
         </div>
         <div class="table-responsive">
             <table id="productsTable">
                 <thead>
                     <tr>
-                        <th style="width:20%">المنتج</th>
-                        <th style="background:#fff3cd">عدد (بالكرتون)</th>
-                        <th style="background:#d4edda; border:2px solid #27ae60">سعر التميز</th>
-                        <th>نسبة التميز %</th>
-                        <th style="background:#eee">السعر الأساسي</th>
-                        <th>النسبة الأساسية %</th>
+                        <th style="width:25%">المنتج</th>
+                        <th style="background:#fffcf5">حبة بالكرتون</th>
+                        <th style="background:#d4edda; border-bottom: 2px solid #27ae60">سعر التميز (الأعلى)</th>
+                        <th>نسبة %</th>
+                        <th style="background:#eee; border-bottom: 2px solid #bdc3c7">السعر الأساسي (الأقل)</th>
+                        <th>نسبة %</th>
                     </tr>
                 </thead>
-                <tbody id="productRows"><tr><td colspan="6">انتظار البيانات...</td></tr></tbody>
+                <tbody id="productRows"><tr><td colspan="6" style="text-align:center">انتظار البيانات...</td></tr></tbody>
             </table>
         </div>
     </div>
 
     <div id="tab-targets" class="tab-content">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-            <h3><i class="fas fa-users-cog"></i> التارجت والمكافآت</h3>
+            <h3><i class="fas fa-users-cog"></i> أهداف المناديب</h3>
             <button onclick="saveTargetSettings()" class="save-btn"><i class="fas fa-save"></i> حفظ التارجت</button>
         </div>
         <div class="table-responsive">
@@ -161,37 +181,49 @@
                 <thead>
                     <tr>
                         <th>المندوب</th>
-                        <th>المبيعات الحالية (المعتمدة)</th>
-                        <th style="background:#eafaf1">مبلغ التارجت</th>
-                        <th style="background:#eafaf1">مكافأة التحقيق</th>
+                        <th>المبيعات المعتمدة</th>
+                        <th style="background:#eafaf1">هدف المبيعات</th>
+                        <th style="background:#eafaf1">مكافأة إضافية</th>
                         <th style="background:#fdeaea; color:#c0392b">تفعيل الحجب؟</th>
                         <th>الحالة</th>
                     </tr>
                 </thead>
-                <tbody id="targetRows"><tr><td colspan="6">انتظار البيانات...</td></tr></tbody>
+                <tbody id="targetRows"><tr><td colspan="6" style="text-align:center">انتظار البيانات...</td></tr></tbody>
             </table>
         </div>
     </div>
 </div>
 
 <script>
-    const DELAYED_SKU = "754500950512";
-    const DELAYED_KEYWORD = "آجلة"; 
+    // --- ثوابت وإعدادات ---
+    const DELAYED_SKU = "754500950512"; // كود خدمة الآجل (إذا وجد)
+    const DELAYED_KEYWORD = "آجلة";     // كلمة مفتاحية للآجل
     
-    // البيانات
-    let rawInvoices = [], productsMap = {}, computedData = [], suspendedData = [], creatorsList = [];
-    let unitsMap = {};
+    // --- مخزن البيانات ---
+    let rawInvoices = []; 
+    let productsMap = {}; 
+    let unitsMap = {}; // وحدات قيود
+    let computedData = [];   // الفواتير المستحقة
+    let suspendedData = [];  // الفواتير المعلقة
+    let creatorsList = [];   // قائمة المناديب
     
-    // الإعدادات
-    let productRules = JSON.parse(localStorage.getItem('productRules_v7') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('targetRules_v7') || "{}");
-    let manualExclusions = JSON.parse(localStorage.getItem('manualExclusions_v7') || "[]");
+    // --- استرجاع الإعدادات المحفوظة (V8) ---
+    let productRules = JSON.parse(localStorage.getItem('productRules_v8') || "{}");
+    let targetRules = JSON.parse(localStorage.getItem('targetRules_v8') || "{}");
+    let manualExclusions = JSON.parse(localStorage.getItem('manualExclusions_v8') || "[]");
 
+    // --- عند التحميل ---
     window.onload = () => {
-        document.getElementById('targetMonth').value = new Date().toISOString().slice(0, 7);
+        // تحديد الشهر الحالي افتراضياً
+        const now = new Date();
+        const monthStr = now.toISOString().slice(0, 7); // YYYY-MM
+        document.getElementById('targetMonth').value = monthStr;
+        
+        // محاولة رسم الجداول إذا كانت البيانات موجودة في الذاكرة (اختياري)
         if(Object.keys(productRules).length > 0) renderProductSettings();
     }
 
+    // --- التنقل بين التبويبات ---
     function switchTab(id) {
         document.querySelectorAll('.tab-content').forEach(d => d.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -199,34 +231,62 @@
         document.querySelector(`button[onclick="switchTab('${id}')"]`).classList.add('active');
     }
 
+    // --- 1. جلب البيانات من السيرفر ---
     async function fetchAndCalculate() {
         const btn = document.querySelector('.calc-btn');
-        btn.innerHTML = '...'; btn.disabled = true;
+        const monthInput = document.getElementById('targetMonth').value;
+
+        if (!monthInput) {
+            alert("الرجاء اختيار الشهر أولاً!");
+            return;
+        }
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الاتصال...'; 
+        btn.disabled = true;
+
         try {
-            const res = await fetch('/api/get-data');
-            if(!res.ok) throw new Error("API Error");
+            // طلب البيانات مع تحديد الشهر
+            const res = await fetch(`/api/get-data?month=${monthInput}`);
+            
+            if(!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || `خطأ سيرفر: ${res.status}`);
+            }
+            
             const data = await res.json();
             
             rawInvoices = data.invoices || [];
             productsMap = data.productsMap || {};
             
+            // تخزين وحدات قيود
             if(data.product_units) {
                  data.product_units.forEach(u => {
+                     // نحاول أخذ معامل التحويل، أحياناً يكون اسمه conversion_factor أو representation
                      unitsMap[u.id] = parseFloat(u.conversion_factor || u.representation || 1);
                  });
             }
 
+            // تحديث قائمة المناديب
             creatorsList = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
             updateCreatorsDropdown();
             
+            // بدء العمليات الحسابية
             calculateAll();
             renderProductSettings();
             renderTargetSettings();
             
-            btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث وحساب';
-        } catch(e) { alert(e.message); btn.innerHTML = 'تحديث'; } finally { btn.disabled = false; }
+            btn.innerHTML = `<i class="fas fa-check"></i> تم (${rawInvoices.length} فاتورة)`;
+
+        } catch(e) { 
+            console.error(e);
+            alert("فشل العملية: " + e.message); 
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> إعادة المحاولة'; 
+        } finally { 
+            btn.disabled = false; 
+        }
     }
 
+    // --- 2. المحرك الحسابي الرئيسي ---
     function calculateAll() {
         computedData = [];
         suspendedData = [];
@@ -236,89 +296,104 @@
         rawInvoices.forEach(inv => {
             if(!inv.line_items) return;
 
-            // تحديد هل الفاتورة آجلة/معلقة؟
+            // أ) التحقق من الآجل
+            // هل تحتوي الفاتورة على بند "خدمة آجل"؟
             let isSystemDelayed = inv.line_items.some(i => i.sku === DELAYED_SKU || (i.product_name && i.product_name.includes(DELAYED_KEYWORD)));
+            // هل قام المستخدم باستثنائها يدوياً؟
             let isManualExcluded = manualExclusions.includes(inv.id);
+            
             let isDelayed = isSystemDelayed || isManualExcluded;
 
-            // تحديد حالة الاستحقاق
-            // تكون مستحقة الآن إذا كانت (كاش) أو (آجلة وتم سدادها في هذا الشهر)
-            // وتكون معلقة إذا كانت (آجلة ولم تسدد) أو (تم استثناؤها يدوياً)
-            
+            // ب) التحقق من الاستحقاق (Eligibility)
             let isEligible = false;
-            let dateToCheck = new Date(inv.issue_date);
+            let checkDate = new Date(inv.issue_date); // الافتراضي تاريخ الإصدار
 
             if (!isDelayed) {
-                // فاتورة عادية (كاش) -> مستحقة بتاريخ إصدارها
+                // فاتورة كاش عادية -> مستحقة فوراً
                 isEligible = true;
-                dateToCheck = new Date(inv.issue_date);
             } else {
-                // فاتورة آجلة أو مستثناة
+                // فاتورة آجلة/مستثناة
                 if (inv.status === 'Paid') {
-                    // مدفوعة -> مستحقة بتاريخ السداد
-                    isEligible = true; 
-                    dateToCheck = new Date(inv.updated_at || inv.issue_date);
-                    // ملاحظة: إذا كانت مستثناة يدوياً، ستبقى غير مستحقة حتى لو دفعت، إلا إذا ألغيت الاستثناء
-                    if(isManualExcluded) isEligible = false; 
+                    // إذا دُفعت -> تصبح مستحقة بتاريخ السداد (أو التحديث)
+                    // ملاحظة: لو كانت مستثناة يدوياً، لن نعتبرها مستحقة حتى يلغي المستخدم الاستثناء (خيار شخصي)
+                    // هنا سأجعل الاستثناء اليدوي قوياً (يمنع البونص حتى لو دفعت)
+                    if (isManualExcluded) {
+                        isEligible = false;
+                        checkDate = new Date(inv.updated_at || inv.issue_date);
+                    } else {
+                        isEligible = true;
+                        checkDate = new Date(inv.updated_at || inv.issue_date);
+                    }
                 } else {
-                    // غير مدفوعة -> معلقة
+                    // لم تدفع -> معلقة
                     isEligible = false;
-                    dateToCheck = new Date(inv.issue_date); // للعرض في المعلق نستخدم تاريخ الإصدار
                 }
             }
 
-            // فلترة الشهر (للمستحقة والمعلقة لعرض شهر محدد)
-            if(dateToCheck.getMonth()+1 !== tMonth || dateToCheck.getFullYear() !== tYear) return;
+            // فلترة الشهر (يجب أن يكون تاريخ الاستحقاق/الإصدار داخل الشهر المحدد)
+            if (checkDate.getMonth() + 1 !== tMonth || checkDate.getFullYear() !== tYear) return;
 
+            // ج) حساب البونص لكل سطر
             inv.line_items.forEach(item => {
+                // تجاهل سطر "خدمة الآجل" نفسه
                 if(item.sku === DELAYED_SKU || (item.product_name && item.product_name.includes(DELAYED_KEYWORD))) return;
                 
                 const pid = item.product_id;
                 const pInfo = productsMap[pid] || { purchase_price: 0, name: item.product_name };
                 const rule = productRules[pid] || {};
 
-                // --- الحسابات ---
+                // 1. تحديد المعامل (الكرتون)
                 let factor = 1;
+                // الأولوية: وحدة قيود > إعداد يدوي > 1
                 if(item.unit_type && unitsMap[item.unit_type]) factor = unitsMap[item.unit_type];
                 else if(rule.factor && parseFloat(rule.factor) !== 1) factor = parseFloat(rule.factor);
 
-                const premiumPrice = rule.premiumPrice ? parseFloat(rule.premiumPrice) : 0;
-                const basePrice = rule.basePrice ? parseFloat(rule.basePrice) : 0;
-                const premiumPct = rule.premiumPct !== undefined ? rule.premiumPct : 2;
-                const basePct = rule.basePct !== undefined ? rule.basePct : 1;
+                // 2. قراءة إعدادات الشرائح
+                const pp = rule.premiumPrice ? parseFloat(rule.premiumPrice) : 0; // سعر التميز
+                const bp = rule.basePrice ? parseFloat(rule.basePrice) : 0;       // السعر الأساسي
+                const ppct = rule.premiumPct !== undefined ? rule.premiumPct : 2; // نسبة التميز
+                const bpct = rule.basePct !== undefined ? rule.basePct : 1;       // نسبة الأساسي
 
                 const sell = parseFloat(item.unit_price);
-                const total = sell * parseFloat(item.quantity);
-                const unitCost = parseFloat(pInfo.purchase_price) * factor;
+                const qty = parseFloat(item.quantity);
+                const total = sell * qty;
+                const unitCost = parseFloat(pInfo.purchase_price) * factor; // تكلفة الوحدة المباعة
 
+                // 3. تصنيف السعر
                 let appliedPct = 0;
-                let typeClass = "أقل من الأساسي";
+                let typeClass = "أقل من الحد";
                 let badgeClass = "badge-low";
 
+                // منطق: هل هذا كرتون؟ (إما المعامل > 1 أو السعر عالي جداً مقارنة بالتكلفة)
                 let isCartonContext = (factor > 1 && sell > (unitCost * 0.5));
 
+                // تطبيق الشرائح
                 if (isCartonContext || factor === 1) {
-                    if (premiumPrice > 0 && sell >= premiumPrice) {
-                        appliedPct = premiumPct;
+                    if (pp > 0 && sell >= pp) {
+                        appliedPct = ppct;
                         typeClass = "تميز (Premium)";
                         badgeClass = "badge-premium";
-                    } else if (basePrice > 0 && sell >= basePrice) {
-                        appliedPct = basePct;
+                    } else if (bp > 0 && sell >= bp) {
+                        appliedPct = bpct;
                         typeClass = "أساسي (Base)";
                         badgeClass = "badge-base";
-                    } else if (premiumPrice === 0 && basePrice === 0 && sell > unitCost) {
-                        appliedPct = basePct; typeClass = "عادي (تلقائي)"; badgeClass = "badge-base";
+                    } else if (pp === 0 && bp === 0 && sell > unitCost) {
+                        // حالة افتراضية: ربح بسيط
+                        appliedPct = bpct; 
+                        typeClass = "تلقائي"; 
+                        badgeClass = "badge-base";
                     }
                 } else {
+                    // بيع بالتفريد الصغير (حبة من كرتون)
                     typeClass = "وحدة صغيرة";
-                    appliedPct = basePct;
+                    appliedPct = bpct; // نعطي النسبة الأساسية
                 }
                 
                 const bonusVal = total * (appliedPct/100);
 
                 const record = {
                     invId: inv.id, ref: inv.reference, creator: inv.created_by, status: inv.status,
-                    prod: item.product_name, qty: item.quantity, sell: sell, class: typeClass, badge: badgeClass,
+                    prod: item.product_name, qty: qty, sell: sell, class: typeClass, badge: badgeClass,
                     pct: appliedPct, bonus: bonusVal, total: total, isManual: isManualExcluded
                 };
 
@@ -332,31 +407,35 @@
         
         renderMainTable();
         renderSuspendedTable();
-        renderTargetSettings();
     }
 
+    // --- 3. رسم الجدول الرئيسي ---
     function renderMainTable() {
         const tbody = document.getElementById('mainRows');
         tbody.innerHTML = '';
         const filter = document.getElementById('creatorFilter').value;
+        
         const filtered = computedData.filter(d => filter === 'all' || d.creator === filter);
 
+        // تجميعات
         let totalSales = filtered.reduce((a,b)=>a+b.total,0);
         let totalBonus = filtered.reduce((a,b)=>a+b.bonus,0);
-        let targetMsg = "بدون تارجت";
+        let targetMsg = "لم يحدد";
         let isBlocked = false;
 
+        // منطق التارجت
         if(filter !== 'all') {
             const tr = targetRules[filter] || {amount:0, reward:0, block:false};
             if(tr.amount > 0) {
                 if(totalSales >= tr.amount) {
                     totalBonus += tr.reward;
-                    targetMsg = "✅ تم التحقيق (+" + tr.reward + ")";
+                    targetMsg = `✅ حقق (+${tr.reward})`;
                 } else {
-                    targetMsg = "❌ فشل";
+                    const diff = tr.amount - totalSales;
+                    targetMsg = `❌ باقي ${diff.toLocaleString()}`;
                     if(tr.block) {
                         isBlocked = true;
-                        totalBonus = 0;
+                        totalBonus = 0; // تصفير البونص
                         targetMsg += " (محجوب)";
                     }
                 }
@@ -367,10 +446,10 @@
         document.getElementById('stat-bonus').innerText = totalBonus.toLocaleString();
         document.getElementById('stat-target').innerText = targetMsg;
 
-        if(filtered.length === 0) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center">لا بيانات مستحقة</td></tr>'; return; }
+        if(filtered.length === 0) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center">لا توجد بيانات مستحقة لهذا الشهر</td></tr>'; return; }
 
         filtered.forEach(r => {
-            let exBtn = `<button class="exclude-btn" onclick="toggleExclusion(${r.invId})">استثناء</button>`;
+            let exBtn = `<button class="exclude-btn" onclick="toggleExclusion(${r.invId})"><i class="fas fa-ban"></i> استثناء</button>`;
             let bonusTxt = isBlocked ? `<span style="text-decoration:line-through; color:red">${r.bonus.toFixed(2)}</span>` : r.bonus.toFixed(2);
             
             tbody.innerHTML += `<tr>
@@ -386,6 +465,7 @@
         });
     }
 
+    // --- 4. رسم جدول المعلق ---
     function renderSuspendedTable() {
         const tbody = document.getElementById('suspendedRows');
         tbody.innerHTML = '';
@@ -395,38 +475,39 @@
         let totalSuspended = filtered.reduce((a,b)=>a+b.bonus,0);
         document.getElementById('stat-suspended-bonus').innerText = totalSuspended.toLocaleString();
 
-        if(filtered.length === 0) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center">لا توجد فواتير معلقة</td></tr>'; return; }
+        if(filtered.length === 0) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center">لا توجد فواتير معلقة</td></tr>'; return; }
 
         filtered.forEach(r => {
-            // زر لإعادة الفاتورة إذا كانت مستثناة يدوياً
             let actionBtn = "";
+            let reason = "";
+            
             if (r.isManual) {
-                actionBtn = `<button class="restore-btn" onclick="toggleExclusion(${r.invId})"><i class="fas fa-undo"></i> إعادة</button>`;
+                actionBtn = `<button class="restore-btn" onclick="toggleExclusion(${r.invId})"><i class="fas fa-undo"></i> إعادة للحساب</button>`;
+                reason = "مستثنى يدوياً";
             } else {
-                actionBtn = `<span style="font-size:0.8em; color:#777">آجل نظام</span>`;
+                actionBtn = `<span style="color:#aaa"><i class="fas fa-lock"></i> آجل</span>`;
+                reason = r.status === 'Paid' ? "مدفوعة (انتظار)" : "غير مدفوعة";
             }
-
-            let reason = r.isManual ? "مستثنى يدوياً" : (r.status === 'Paid' ? "مدفوعة (آجل)" : "غير مدفوعة");
 
             tbody.innerHTML += `<tr>
                 <td>${actionBtn}</td>
                 <td>${r.ref}</td><td>${r.creator}</td>
                 <td style="font-size:0.9em">${r.prod}</td>
                 <td><span class="badge badge-pending">${reason}</span></td>
-                <td><span class="badge ${r.badge}">${r.class}</span></td>
-                <td style="font-weight:bold; color:#c0392b">${r.bonus.toFixed(2)}</td>
+                <td style="font-weight:bold; color:#7f8c8d">${r.bonus.toFixed(2)}</td>
             </tr>`;
         });
     }
 
+    // --- إدارة الاستثناء اليدوي ---
     function toggleExclusion(id) {
         if(manualExclusions.includes(id)) manualExclusions = manualExclusions.filter(x=>x!==id);
         else manualExclusions.push(id);
-        localStorage.setItem('manualExclusions_v7', JSON.stringify(manualExclusions));
+        localStorage.setItem('manualExclusions_v8', JSON.stringify(manualExclusions));
         calculateAll();
     }
 
-    // دوال المنتجات والتارجت والإكسل (نفس السابق)
+    // --- إدارة إعدادات المنتجات ---
     function renderProductSettings() {
         const tbody = document.getElementById('productRows');
         tbody.innerHTML = '';
@@ -440,7 +521,7 @@
             const bpct = r.basePct !== undefined ? r.basePct : 1;
             
             tbody.innerHTML += `<tr>
-                <td style="text-align:right">${p.name}</td>
+                <td style="text-align:right; font-size:0.9em;">${p.name}</td>
                 <td><input type="number" class="tbl-input" id="f_${pid}" value="${factor}" step="1" style="background:#fffcf5"></td>
                 <td><input type="number" class="tbl-input" id="pp_${pid}" value="${pp}" style="border:2px solid #27ae60"></td>
                 <td><input type="number" class="tbl-input" id="pct1_${pid}" value="${ppct}"></td>
@@ -460,11 +541,12 @@
                 basePct: parseFloat(document.getElementById(`pct2_${pid}`).value)||0
             };
         });
-        localStorage.setItem('productRules_v7', JSON.stringify(productRules));
-        alert('تم الحفظ');
+        localStorage.setItem('productRules_v8', JSON.stringify(productRules));
+        alert('تم حفظ إعدادات الأسعار والنسب');
         calculateAll();
     }
 
+    // --- إدارة التارجت ---
     function renderTargetSettings() {
         const tbody = document.getElementById('targetRows');
         tbody.innerHTML = '';
@@ -491,8 +573,8 @@
                 block: document.getElementById(`tb_${c}`).checked
             };
         });
-        localStorage.setItem('targetRules_v7', JSON.stringify(targetRules));
-        alert('تم الحفظ');
+        localStorage.setItem('targetRules_v8', JSON.stringify(targetRules));
+        alert('تم حفظ أهداف المناديب');
         calculateAll();
     }
 
@@ -504,18 +586,22 @@
         s.value = v;
     }
 
+    // --- تصدير للإكسل ---
     async function exportToExcel() {
         const wb = new ExcelJS.Workbook();
-        const ws = wb.addWorksheet('Earned_Bonus');
+        
+        // شيت 1: البونص المستحق
+        const ws = wb.addWorksheet('البونص المستحق');
         ws.addRow(['المرجع','المندوب','المنتج','الكمية','سعر البيع','التصنيف','النسبة','البونص']);
         computedData.forEach(d => ws.addRow([d.ref, d.creator, d.prod, d.qty, d.sell, d.class, d.pct+'%', d.bonus]));
         
-        const ws2 = wb.addWorksheet('Suspended_Invoices');
+        // شيت 2: المعلق
+        const ws2 = wb.addWorksheet('الفواتير المعلقة');
         ws2.addRow(['المرجع','المندوب','المنتج','الحالة','البونص المتوقع']);
-        suspendedData.forEach(d => ws2.addRow([d.ref, d.creator, d.prod, d.status, d.bonus]));
+        suspendedData.forEach(d => ws2.addRow([d.ref, d.creator, d.prod, d.status === 'Paid' ? 'مدفوعة (آجل)' : 'غير مدفوعة', d.bonus]));
 
         const buf = await wb.xlsx.writeBuffer();
-        saveAs(new Blob([buf]), 'Bonus_Report_Complete.xlsx');
+        saveAs(new Blob([buf]), 'Bonus_Report_V8.xlsx');
     }
 </script>
 </body>
