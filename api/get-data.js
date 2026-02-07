@@ -18,18 +18,25 @@ export default async function handler(req, res) {
     };
 
     try {
-        // 2. إعداد التواريخ
-        let dateParams = "";
-        if (targetMonth) {
-            const [year, month] = targetMonth.split('-');
-            const startDate = `${year}-${month}-01`;
-            const lastDay = new Date(year, month, 0).getDate();
-            const endDate = `${year}-${month}-${lastDay}`;
-            dateParams = `&q[issue_date_gteq]=${startDate}&q[issue_date_lteq]=${endDate}`;
-        }
+    // 2. إعداد التواريخ (جلب 3 أشهر: الشهر المختار + الشهرين السابقين)
+    let dateParams = "";
+    if (targetMonth) {
+        const [year, month] = targetMonth.split('-').map(Number);
+        
+        // حساب تاريخ البداية (قبل شهرين من الشهر المختار)
+        const startDateObj = new Date(year, month - 3, 1);
+        const startDate = startDateObj.toISOString().slice(0, 10);
+        
+        // حساب تاريخ النهاية (آخر يوم في الشهر المختار)
+        const endDateObj = new Date(year, month, 0);
+        const endDate = endDateObj.toISOString().slice(0, 10);
+        
+        dateParams = `&q[issue_date_gteq]=${startDate}&q[issue_date_lteq]=${endDate}`;
+    }
 
         // 3. الروابط (V2)
-        const invUrl = `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Approved${dateParams}&limit=2000`;
+        // جلب الفواتير المدفوعة فقط (تحسين الأداء)
+        const invUrl = `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid${dateParams}&limit=2000`;
         const prodUrl = "https://api.qoyod.com/2.0/products?limit=2000";
         const unitsUrl = "https://api.qoyod.com/2.0/product_units?limit=500";
 

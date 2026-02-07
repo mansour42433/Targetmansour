@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام البونص الاحترافي V8</title>
+<title>نظام البونص الاحترافي V9 - محدث</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -144,9 +144,13 @@
     </div>
 
     <div id="tab-products" class="tab-content">
-        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
             <h3><i class="fas fa-sliders-h"></i> شرائح الأسعار والكرتون</h3>
-            <button onclick="saveProductSettings()" class="save-btn"><i class="fas fa-save"></i> حفظ الإعدادات</button>
+            <div style="display:flex; gap:10px;">
+                <button onclick="saveProductSettings()" class="save-btn"><i class="fas fa-save"></i> حفظ الإعدادات</button>
+                <button onclick="exportSettings()" class="save-btn" style="background:#e67e22"><i class="fas fa-download"></i> تصدير</button>
+                <button onclick="importSettings()" class="save-btn" style="background:#8e44ad"><i class="fas fa-upload"></i> استيراد</button>
+            </div>
         </div>
         <div class="alert-box">
             <i class="fas fa-lightbulb"></i> <strong>الدليل:</strong><br>
@@ -211,6 +215,7 @@
     let productRules = JSON.parse(localStorage.getItem('productRules_v8') || "{}");
     let targetRules = JSON.parse(localStorage.getItem('targetRules_v8') || "{}");
     let manualExclusions = JSON.parse(localStorage.getItem('manualExclusions_v8') || "[]");
+    let invoiceTransfers = JSON.parse(localStorage.getItem('invoiceTransfers_v8') || "{}"); // التحسين المتوسط 2: نقل الفواتير
 
     // --- عند التحميل ---
     window.onload = () => {
@@ -304,9 +309,15 @@
             
             let isDelayed = isSystemDelayed || isManualExcluded;
 
-            // ب) التحقق من الاستحقاق (Eligibility)
+            // ب) التحقق من الاستحقاق (Eligibility) وتاريخ السداد الفعلي
             let isEligible = false;
-            let checkDate = new Date(inv.issue_date); // الافتراضي تاريخ الإصدار
+            let checkDate = new Date(inv.issue_date); // الافتراضي
+            
+            // استخراج تاريخ آخر دفعة من payments[] - التحسين المتوسط 1
+            if (inv.status === 'Paid' && inv.payments && inv.payments.length > 0) {
+                const sortedPayments = inv.payments.sort((a, b) => new Date(b.date) - new Date(a.date));
+                checkDate = new Date(sortedPayments[0].date); // أحدث دفعة
+            }
 
             if (!isDelayed) {
                 // فاتورة كاش عادية -> مستحقة فوراً
@@ -314,15 +325,12 @@
             } else {
                 // فاتورة آجلة/مستثناة
                 if (inv.status === 'Paid') {
-                    // إذا دُفعت -> تصبح مستحقة بتاريخ السداد (أو التحديث)
-                    // ملاحظة: لو كانت مستثناة يدوياً، لن نعتبرها مستحقة حتى يلغي المستخدم الاستثناء (خيار شخصي)
-                    // هنا سأجعل الاستثناء اليدوي قوياً (يمنع البونص حتى لو دفعت)
+                    // إذا دُفعت -> تصبح مستحقة بتاريخ السداد
+                    // الاستثناء اليدوي يمنع البونص حتى لو دفعت
                     if (isManualExcluded) {
                         isEligible = false;
-                        checkDate = new Date(inv.updated_at || inv.issue_date);
                     } else {
                         isEligible = true;
-                        checkDate = new Date(inv.updated_at || inv.issue_date);
                     }
                 } else {
                     // لم تدفع -> معلقة
@@ -356,45 +364,49 @@
 
                 const sell = parseFloat(item.unit_price);
                 const qty = parseFloat(item.quantity);
-                const total = sell * qty;
+                
+                // إضافة الضريبة (15% VAT) - الإصلاح الحرج 2
+                const taxPercent = parseFloat(item.tax_percent || 0);
+                const sellWithTax = sell * (1 + taxPercent / 100);
+                
+                // تحويل سعر البيع إلى سعر الكرتون - الإصلاح الحرج 3
+                const sellPerCarton = sellWithTax * factor;
+                
+                const total = sellWithTax * qty;
                 const unitCost = parseFloat(pInfo.purchase_price) * factor; // تكلفة الوحدة المباعة
 
-                // 3. تصنيف السعر
+                // 3. تصنيف السعر (بعد إضافة الضريبة والتحويل)
                 let appliedPct = 0;
                 let typeClass = "أقل من الحد";
                 let badgeClass = "badge-low";
 
-                // منطق: هل هذا كرتون؟ (إما المعامل > 1 أو السعر عالي جداً مقارنة بالتكلفة)
-                let isCartonContext = (factor > 1 && sell > (unitCost * 0.5));
-
-                // تطبيق الشرائح
-                if (isCartonContext || factor === 1) {
-                    if (pp > 0 && sell >= pp) {
-                        appliedPct = ppct;
-                        typeClass = "تميز (Premium)";
-                        badgeClass = "badge-premium";
-                    } else if (bp > 0 && sell >= bp) {
-                        appliedPct = bpct;
-                        typeClass = "أساسي (Base)";
-                        badgeClass = "badge-base";
-                    } else if (pp === 0 && bp === 0 && sell > unitCost) {
-                        // حالة افتراضية: ربح بسيط
-                        appliedPct = bpct; 
-                        typeClass = "تلقائي"; 
-                        badgeClass = "badge-base";
-                    }
-                } else {
-                    // بيع بالتفريد الصغير (حبة من كرتون)
-                    typeClass = "وحدة صغيرة";
-                    appliedPct = bpct; // نعطي النسبة الأساسية
+                // مقارنة السعر بعد التحويل للكرتون
+                if (pp > 0 && sellPerCarton >= pp) {
+                    appliedPct = ppct;
+                    typeClass = "تميز (Premium)";
+                    badgeClass = "badge-premium";
+                } else if (bp > 0 && sellPerCarton >= bp) {
+                    appliedPct = bpct;
+                    typeClass = "أساسي (Base)";
+                    badgeClass = "badge-base";
+                } else if (pp === 0 && bp === 0 && sellPerCarton > unitCost) {
+                    // حالة افتراضية: ربح بسيط
+                    appliedPct = bpct; 
+                    typeClass = "تلقائي"; 
+                    badgeClass = "badge-base";
                 }
                 
                 const bonusVal = total * (appliedPct/100);
 
                 const record = {
-                    invId: inv.id, ref: inv.reference, creator: inv.created_by, status: inv.status,
-                    prod: item.product_name, qty: qty, sell: sell, class: typeClass, badge: badgeClass,
-                    pct: appliedPct, bonus: bonusVal, total: total, isManual: isManualExcluded
+                    invId: inv.id, 
+                    ref: inv.reference, 
+                    creator: invoiceTransfers[inv.id] || inv.created_by, // التحسين المتوسط 2: نقل الفواتير
+                    originalCreator: inv.created_by, // حفظ المندوب الأصلي
+                    status: inv.status,
+                    prod: item.product_name, qty: qty, sell: sellWithTax, class: typeClass, badge: badgeClass,
+                    pct: appliedPct, bonus: bonusVal, total: total, isManual: isManualExcluded,
+                    factor: factor, taxPercent: taxPercent // للعرض والتدقيق
                 };
 
                 if (isEligible) {
@@ -450,14 +462,17 @@
 
         filtered.forEach(r => {
             let exBtn = `<button class="exclude-btn" onclick="toggleExclusion(${r.invId})"><i class="fas fa-ban"></i> استثناء</button>`;
+            let transferBtn = `<button class="save-btn" style="font-size:0.75em; padding:3px 8px; margin-top:3px" onclick="transferInvoice(${r.invId}, '${r.creator}')"><i class="fas fa-exchange-alt"></i> نقل</button>`;
+            let transferIndicator = r.originalCreator !== r.creator ? `<span style="font-size:0.75em; color:#e67e22"><br>← ${r.originalCreator}</span>` : '';
             let bonusTxt = isBlocked ? `<span style="text-decoration:line-through; color:red">${r.bonus.toFixed(2)}</span>` : r.bonus.toFixed(2);
             
             tbody.innerHTML += `<tr>
-                <td>${exBtn}</td>
-                <td>${r.ref}</td><td>${r.creator}</td>
+                <td>${exBtn}<br>${transferBtn}</td>
+                <td>${r.ref}</td>
+                <td>${r.creator}${transferIndicator}</td>
                 <td style="font-size:0.9em">${r.prod}</td>
                 <td>${r.qty}</td>
-                <td><b>${r.sell}</b></td>
+                <td><b>${r.sell.toFixed(2)}</b></td>
                 <td><span class="badge ${r.badge}">${r.class}</span></td>
                 <td>${r.pct}%</td>
                 <td style="font-weight:bold; color:var(--acc)">${bonusTxt}</td>
@@ -505,6 +520,27 @@
         else manualExclusions.push(id);
         localStorage.setItem('manualExclusions_v8', JSON.stringify(manualExclusions));
         calculateAll();
+    }
+    
+    // --- نقل الفواتير بين المناديب (التحسين المتوسط 2) ---
+    function transferInvoice(invId, currentCreator) {
+        const newCreator = prompt(`نقل الفاتورة #${invId} من "${currentCreator}" إلى:`, "");
+        if (newCreator && newCreator.trim() !== "") {
+            invoiceTransfers[invId] = newCreator.trim();
+            localStorage.setItem('invoiceTransfers_v8', JSON.stringify(invoiceTransfers));
+            alert(`تم نقل الفاتورة #${invId} إلى "${newCreator.trim()}" بنجاح`);
+            calculateAll();
+        }
+    }
+    
+    // --- حذف نقل فاتورة (إعادة للمندوب الأصلي) ---
+    function resetTransfer(invId) {
+        if(invoiceTransfers[invId]) {
+            delete invoiceTransfers[invId];
+            localStorage.setItem('invoiceTransfers_v8', JSON.stringify(invoiceTransfers));
+            alert(`تم إعادة الفاتورة #${invId} للمندوب الأصلي`);
+            calculateAll();
+        }
     }
 
     // --- إدارة إعدادات المنتجات ---
@@ -602,6 +638,79 @@
 
         const buf = await wb.xlsx.writeBuffer();
         saveAs(new Blob([buf]), 'Bonus_Report_V8.xlsx');
+    }
+    
+    // --- تصدير الإعدادات (التحسين التكميلي) ---
+    function exportSettings() {
+        const settings = {
+            productRules: productRules,
+            targetRules: targetRules,
+            invoiceTransfers: invoiceTransfers,
+            version: "v8",
+            exportDate: new Date().toISOString(),
+            description: "نظام إدارة العمولات - نسخة احتياطية"
+        };
+        
+        const jsonStr = JSON.stringify(settings, null, 2);
+        const blob = new Blob([jsonStr], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bonus-settings-${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        alert('تم تصدير الإعدادات بنجاح!');
+    }
+    
+    // --- استيراد الإعدادات (التحسين التكميلي) ---
+    function importSettings() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/json';
+        input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = event => {
+                try {
+                    const settings = JSON.parse(event.target.result);
+                    
+                    // التحقق من صحة الملف
+                    if (!settings.version || settings.version !== "v8") {
+                        throw new Error('صيغة الملف غير متوافقة أو إصدار قديم');
+                    }
+                    
+                    // استيراد الإعدادات
+                    if (settings.productRules) {
+                        productRules = settings.productRules;
+                        localStorage.setItem('productRules_v8', JSON.stringify(productRules));
+                    }
+                    if (settings.targetRules) {
+                        targetRules = settings.targetRules;
+                        localStorage.setItem('targetRules_v8', JSON.stringify(targetRules));
+                    }
+                    if (settings.invoiceTransfers) {
+                        invoiceTransfers = settings.invoiceTransfers;
+                        localStorage.setItem('invoiceTransfers_v8', JSON.stringify(invoiceTransfers));
+                    }
+                    
+                    alert('تم استيراد الإعدادات بنجاح!\n\nتاريخ التصدير: ' + (settings.exportDate ? new Date(settings.exportDate).toLocaleString('ar-SA') : 'غير محدد'));
+                    
+                    // إعادة رسم الجداول
+                    renderProductSettings();
+                    renderTargetSettings();
+                    calculateAll();
+                    
+                } catch(err) {
+                    alert('خطأ في قراءة الملف: ' + err.message);
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
     }
 </script>
 </body>
