@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام البونص الاحترافي V9 - محدث</title>
+<title>نظام البونص الاحترافي V10 - مع معالجة المرتجعات</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -207,6 +207,7 @@
     let rawInvoices = []; 
     let productsMap = {}; 
     let unitsMap = {}; // وحدات قيود
+    let creditNotesMap = {}; // إشعارات الدائن (المرتجعات) - مفهرسة حسب invoice_id
     let computedData = [];   // الفواتير المستحقة
     let suspendedData = [];  // الفواتير المعلقة
     let creatorsList = [];   // قائمة المناديب
@@ -269,6 +270,18 @@
                      // نحاول أخذ معامل التحويل، أحياناً يكون اسمه conversion_factor أو representation
                      unitsMap[u.id] = parseFloat(u.conversion_factor || u.representation || 1);
                  });
+            }
+            
+            // معالجة إشعارات الدائن (المرتجعات)
+            creditNotesMap = {};
+            if(data.credit_notes) {
+                data.credit_notes.forEach(cn => {
+                    const invId = cn.invoice_id;
+                    if(!invId) return; // تجاهل إشعارات غير مرتبطة بفاتورة
+                    
+                    if(!creditNotesMap[invId]) creditNotesMap[invId] = [];
+                    creditNotesMap[invId].push(cn);
+                });
             }
 
             // تحديث قائمة المناديب
@@ -341,7 +354,21 @@
             // فلترة الشهر (يجب أن يكون تاريخ الاستحقاق/الإصدار داخل الشهر المحدد)
             if (checkDate.getMonth() + 1 !== tMonth || checkDate.getFullYear() !== tYear) return;
 
-            // ج) حساب البونص لكل سطر
+            // ج) حساب البونص لكل سطر (مع خصم المرتجعات)
+            
+            // حساب المرتجعات لهذه الفاتورة
+            const returnedQtyMap = {}; // {product_id: total_returned_qty}
+            if(creditNotesMap[inv.id]) {
+                creditNotesMap[inv.id].forEach(cn => {
+                    if(!cn.line_items) return;
+                    cn.line_items.forEach(cnItem => {
+                        const pid = cnItem.product_id;
+                        const returnedQty = Math.abs(parseFloat(cnItem.quantity || 0)); // الكمية المرجعة (موجبة دائماً)
+                        returnedQtyMap[pid] = (returnedQtyMap[pid] || 0) + returnedQty;
+                    });
+                });
+            }
+            
             inv.line_items.forEach(item => {
                 // تجاهل سطر "خدمة الآجل" نفسه
                 if(item.sku === DELAYED_SKU || (item.product_name && item.product_name.includes(DELAYED_KEYWORD))) return;
@@ -363,7 +390,14 @@
                 const bpct = rule.basePct !== undefined ? rule.basePct : 1;       // نسبة الأساسي
 
                 const sell = parseFloat(item.unit_price);
-                const qty = parseFloat(item.quantity);
+                let qty = parseFloat(item.quantity);
+                
+                // خصم الكمية المرجعة من هذا المنتج
+                const returnedQty = returnedQtyMap[pid] || 0;
+                qty = qty - returnedQty;
+                
+                // إذا كانت الكمية الصافية صفر أو سالبة، تجاهل هذا السطر
+                if(qty <= 0) return;
                 
                 // إضافة الضريبة (15% VAT) - الإصلاح الحرج 2
                 const taxPercent = parseFloat(item.tax_percent || 0);
@@ -404,7 +438,11 @@
                     creator: invoiceTransfers[inv.id] || inv.created_by, // التحسين المتوسط 2: نقل الفواتير
                     originalCreator: inv.created_by, // حفظ المندوب الأصلي
                     status: inv.status,
-                    prod: item.product_name, qty: qty, sell: sellWithTax, class: typeClass, badge: badgeClass,
+                    prod: item.product_name, 
+                    qty: qty, // الكمية بعد خصم المرتجعات
+                    originalQty: parseFloat(item.quantity), // الكمية الأصلية
+                    returnedQty: returnedQty, // الكمية المرجعة
+                    sell: sellWithTax, class: typeClass, badge: badgeClass,
                     pct: appliedPct, bonus: bonusVal, total: total, isManual: isManualExcluded,
                     factor: factor, taxPercent: taxPercent // للعرض والتدقيق
                 };
@@ -466,12 +504,18 @@
             let transferIndicator = r.originalCreator !== r.creator ? `<span style="font-size:0.75em; color:#e67e22"><br>← ${r.originalCreator}</span>` : '';
             let bonusTxt = isBlocked ? `<span style="text-decoration:line-through; color:red">${r.bonus.toFixed(2)}</span>` : r.bonus.toFixed(2);
             
+            // عرض المرتجعات إذا وجدت
+            let qtyDisplay = r.qty;
+            if(r.returnedQty && r.returnedQty > 0) {
+                qtyDisplay = `<span title="الكمية الأصلية: ${r.originalQty}">${r.qty} <span style="color:#e74c3c; font-size:0.8em">(-${r.returnedQty})</span></span>`;
+            }
+            
             tbody.innerHTML += `<tr>
                 <td>${exBtn}<br>${transferBtn}</td>
                 <td>${r.ref}</td>
                 <td>${r.creator}${transferIndicator}</td>
                 <td style="font-size:0.9em">${r.prod}</td>
-                <td>${r.qty}</td>
+                <td>${qtyDisplay}</td>
                 <td><b>${r.sell.toFixed(2)}</b></td>
                 <td><span class="badge ${r.badge}">${r.class}</span></td>
                 <td>${r.pct}%</td>
@@ -495,20 +539,30 @@
         filtered.forEach(r => {
             let actionBtn = "";
             let reason = "";
+            let reasonBadge = "badge-pending";
             
             if (r.isManual) {
                 actionBtn = `<button class="restore-btn" onclick="toggleExclusion(${r.invId})"><i class="fas fa-undo"></i> إعادة للحساب</button>`;
                 reason = "مستثنى يدوياً";
+                reasonBadge = "badge-low";
             } else {
-                actionBtn = `<span style="color:#aaa"><i class="fas fa-lock"></i> آجل</span>`;
-                reason = r.status === 'Paid' ? "مدفوعة (انتظار)" : "غير مدفوعة";
+                // فاتورة آجلة
+                if (r.status === 'Paid') {
+                    actionBtn = `<span style="color:#27ae60"><i class="fas fa-check-circle"></i> مدفوعة</span>`;
+                    reason = "آجلة مدفوعة (ستدخل البونص في شهر السداد)";
+                    reasonBadge = "badge-base";
+                } else {
+                    actionBtn = `<span style="color:#e74c3c"><i class="fas fa-clock"></i> غير مدفوعة</span>`;
+                    reason = "آجلة غير مدفوعة (لن تدخل البونص حتى السداد)";
+                    reasonBadge = "badge-pending";
+                }
             }
 
             tbody.innerHTML += `<tr>
                 <td>${actionBtn}</td>
                 <td>${r.ref}</td><td>${r.creator}</td>
                 <td style="font-size:0.9em">${r.prod}</td>
-                <td><span class="badge badge-pending">${reason}</span></td>
+                <td><span class="badge ${reasonBadge}">${reason}</span></td>
                 <td style="font-weight:bold; color:#7f8c8d">${r.bonus.toFixed(2)}</td>
             </tr>`;
         });
