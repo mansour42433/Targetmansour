@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام البونص الاحترافي V12 - مع معالجة المرتجعات</title>
+<title>نظام البونص الاحترافي V13 - مع عرض الآجلة والمرتجعات</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -70,6 +70,7 @@
     <div class="tabs-header">
         <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-wallet"></i> البونص المستحق</button>
         <button class="tab-btn" onclick="switchTab('suspended')"><i class="fas fa-pause-circle"></i> المعلق (الآجل)</button>
+        <button class="tab-btn" onclick="switchTab('returns')"><i class="fas fa-undo"></i> المرتجعات</button>
         <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-tags"></i> إعدادات الأسعار</button>
         <button class="tab-btn" onclick="switchTab('targets')"><i class="fas fa-bullseye"></i> التارجت</button>
     </div>
@@ -147,6 +148,39 @@
                     </tr>
                 </thead>
                 <tbody id="suspendedRows"><tr><td colspan="6" style="text-align:center">لا توجد فواتير معلقة</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-returns" class="tab-content">
+        <div class="alert-box" style="background:#fff3cd; color:#856404; border-color:#ffeeba;">
+            <i class="fas fa-info-circle"></i> <strong>المرتجعات:</strong>
+            هذه الفواتير لها إشعارات دائن (Credit Notes) مربوطة بها. النظام يخصم المرتجعات تلقائياً من العمولات.
+        </div>
+        <div class="stats">
+            <div class="card" style="background:#c0392b; max-width: 300px;">
+                <h3>إجمالي المرتجعات</h3>
+                <div id="stat-returns-amount" class="card-val">0.00 ريال</div>
+            </div>
+            <div class="card" style="background:#e67e22; max-width: 300px;">
+                <h3>عدد الفواتير المتأثرة</h3>
+                <div id="stat-returns-count" class="card-val">0</div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>المرجع</th>
+                        <th>المندوب</th>
+                        <th>مبلغ الإشعار الدائن</th>
+                        <th>إجمالي الفاتورة</th>
+                        <th>نسبة المرتجع</th>
+                        <th>تاريخ الإشعار</th>
+                    </tr>
+                </thead>
+                <tbody id="returnsRows"><tr><td colspan="6" style="text-align:center">لا توجد مرتجعات</td></tr></tbody>
             </table>
         </div>
     </div>
@@ -473,6 +507,7 @@
         
         renderMainTable();
         renderSuspendedTable();
+        renderReturnsTable(); // عرض المرتجعات
     }
 
     // --- 3. رسم الجدول الرئيسي ---
@@ -593,6 +628,52 @@
                 <td style="font-weight:bold; color:#7f8c8d">${r.bonus.toFixed(2)}</td>
             </tr>`;
         });
+    }
+
+    // --- عرض المرتجعات ---
+    function renderReturnsTable() {
+        const tbody = document.getElementById('returnsRows');
+        tbody.innerHTML = '';
+        
+        let totalReturnsAmount = 0;
+        let affectedInvoicesCount = 0;
+        
+        // فحص جميع الفواتير للبحث عن allocations من نوع CreditNote
+        rawInvoices.forEach(inv => {
+            if(inv.allocations && inv.allocations.length > 0) {
+                inv.allocations.forEach(alloc => {
+                    if(alloc.source_type === 'CreditNote') {
+                        affectedInvoicesCount++;
+                        const creditAmount = parseFloat(alloc.amount || 0);
+                        const invoiceTotal = parseFloat(inv.total || 0);
+                        const returnRatio = invoiceTotal > 0 ? (creditAmount / invoiceTotal * 100) : 0;
+                        
+                        totalReturnsAmount += creditAmount;
+                        
+                        // الحصول على اسم المندوب
+                        let creator = inv.created_by || 'غير محدد';
+                        if(invoiceTransfers[inv.id]) creator = invoiceTransfers[inv.id];
+                        
+                        tbody.innerHTML += `<tr>
+                            <td>${inv.reference || inv.id}</td>
+                            <td>${creator}</td>
+                            <td style="color:#c0392b; font-weight:bold">${creditAmount.toFixed(2)} ريال</td>
+                            <td>${invoiceTotal.toFixed(2)} ريال</td>
+                            <td><span class="badge badge-pending">${returnRatio.toFixed(1)}%</span></td>
+                            <td>${alloc.date || '-'}</td>
+                        </tr>`;
+                    }
+                });
+            }
+        });
+        
+        if(affectedInvoicesCount === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">لا توجد مرتجعات في الفترة المختارة</td></tr>';
+        }
+        
+        // تحديث الإحصائيات
+        document.getElementById('stat-returns-amount').innerText = totalReturnsAmount.toFixed(2) + ' ريال';
+        document.getElementById('stat-returns-count').innerText = affectedInvoicesCount;
     }
 
     // --- إدارة الاستثناء اليدوي ---

@@ -35,8 +35,8 @@ export default async function handler(req, res) {
     }
 
         // 3. الروابط (V2)
-        // جلب الفواتير المدفوعة فقط (تحسين الأداء)
-        const invUrl = `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid${dateParams}&limit=2000`;
+        // جلب الفواتير المدفوعة والآجلة (Paid + Approved)
+        const invUrl = `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Approved${dateParams}&limit=2000`;
         const prodUrl = "https://api.qoyod.com/2.0/products?limit=2000";
         const unitsUrl = "https://api.qoyod.com/2.0/product_units?limit=500";
 
