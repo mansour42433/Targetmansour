@@ -5,13 +5,14 @@ export default async function handler(req, res) {
     const headers = { "API-KEY": API_KEY, "Content-Type": "application/json" };
 
     try {
-        // نحدد تاريخ بداية واسع (من بداية 2024 مثلاً) لضمان عدم ضياع الآجل
-        // ولكن الأهم: الترتيب (q[s]=issue_date+desc) ليجلب الجديد أولاً
         const urls = [
-            // لاحظ الإضافة: &q[s]=issue_date+desc
+            // جلب الفواتير (الأحدث أولاً)
             `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Partially Paid&q[status_in][]=Approved&q[s]=issue_date+desc&limit=2500`,
+            // جلب المنتجات (للأسماء العربية والـ SKU)
             `https://api.qoyod.com/2.0/products?limit=2500`,
+            // جلب الوحدات (لمعاملات التحويل التلقائية)
             `https://api.qoyod.com/2.0/product_units?limit=1000`,
+            // جلب المرتجعات
             `https://api.qoyod.com/2.0/credit_notes?q[s]=issue_date+desc&limit=1000`
         ];
 
@@ -19,11 +20,11 @@ export default async function handler(req, res) {
         const data = { invoices: [], productsMap: {}, product_units: [], credit_notes: [] };
 
         if (results[0].status === 'fulfilled' && results[0].value.ok) data.invoices = (await results[0].value.json()).invoices;
-        else if (results[0].status === 'rejected') throw new Error("فشل جلب الفواتير");
-
         if (results[1].status === 'fulfilled' && results[1].value.ok) {
             const pData = await results[1].value.json();
-            pData.products.forEach(p => { data.productsMap[p.id] = { name: p.name_ar || p.name_en, sku: p.sku }; });
+            pData.products.forEach(p => { 
+                data.productsMap[p.id] = { name: p.name_ar || p.name_en, sku: p.sku }; 
+            });
         }
         if (results[2].status === 'fulfilled' && results[2].value.ok) {
             const uData = await results[2].value.json();
