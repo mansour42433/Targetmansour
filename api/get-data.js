@@ -6,13 +6,9 @@ export default async function handler(req, res) {
 
     try {
         const urls = [
-            // جلب الفواتير (الأحدث أولاً)
-            `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Partially Paid&q[status_in][]=Approved&q[s]=issue_date+desc&limit=2500`,
-            // جلب المنتجات (للأسماء العربية والـ SKU)
-            `https://api.qoyod.com/2.0/products?limit=2500`,
-            // جلب الوحدات (لمعاملات التحويل التلقائية)
+            `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Partially Paid&q[status_in][]=Approved&q[s]=issue_date+desc&limit=3000`,
+            `https://api.qoyod.com/2.0/products?limit=3000`,
             `https://api.qoyod.com/2.0/product_units?limit=1000`,
-            // جلب المرتجعات
             `https://api.qoyod.com/2.0/credit_notes?q[s]=issue_date+desc&limit=1000`
         ];
 
