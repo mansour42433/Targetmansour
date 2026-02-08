@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات الدقيق V24 (حسب التوثيق)</title>
+    <title>نظام العمولات المضمون V25</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -30,7 +30,6 @@
         .btn{padding:10px 18px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-family:'Cairo'; transition:0.3s;}
         .btn-acc{background:var(--acc); color:#fff;}
         .btn-g{background:var(--g); color:#fff;}
-        .btn-r{background:var(--r); color:#fff;}
         .tbl-input{width:70px; text-align:center; padding:5px; border:1px solid #ccc; border-radius:4px;}
         .auto-tag {font-size: 0.7em; background: #e1f5fe; color: #0277bd; padding: 2px 5px; border-radius: 4px; margin-right: 5px;}
     </style>
@@ -39,22 +38,25 @@
 
 <div class="box">
     <div class="tabs-header">
-        <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-money-bill-wave"></i> البونص (التحصيل الفعلي)</button>
+        <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-money-bill-wave"></i> البونص المستحق</button>
         <button class="tab-btn" onclick="switchTab('suspended')"><i class="fas fa-clock"></i> المعلق</button>
-        <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-magic"></i> الأسعار (تلقائي)</button>
+        <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-magic"></i> الأسعار</button>
         <button class="tab-btn" onclick="switchTab('targets')"><i class="fas fa-bullseye"></i> التارجت</button>
         <button class="tab-btn" onclick="switchTab('backup')"><i class="fas fa-database"></i> النسخ الاحتياطي</button>
     </div>
 
     <div id="tab-main" class="tab-content active">
         <div style="display:flex; gap:15px; align-items:flex-end; margin-bottom:20px; background:#f8f9fa; padding:15px; border-radius:10px;">
-            <div><label>شهر التحصيل</label><br><input type="month" id="targetMonth" style="padding:8px; border-radius:5px; border:1px solid #ccc;"></div>
+            <div><label>الشهر</label><br><input type="month" id="targetMonth" style="padding:8px; border-radius:5px; border:1px solid #ccc;"></div>
             <div><label>المندوب</label><br><select id="creatorFilter" onchange="renderUI()" class="rep-select" style="width:200px;"></select></div>
             <button class="btn btn-acc" onclick="fetchData()"><i class="fas fa-sync"></i> جلب وحساب</button>
             <button class="btn btn-g" onclick="exportExcel()"><i class="fas fa-file-excel"></i> تصدير</button>
         </div>
+        <div style="font-size:0.8em; color:#7f8c8d; margin-bottom:10px;">
+            حالة النظام: <span id="sys-status">انتظار...</span>
+        </div>
         <div class="stats">
-            <div class="card"><h3>المحصل فعلياً</h3><div id="stat-sales" class="card-val">0</div></div>
+            <div class="card"><h3>المبيعات المحتسبة</h3><div id="stat-sales" class="card-val">0</div></div>
             <div class="card" style="background:var(--acc)"><h3>البونص المستحق</h3><div id="stat-bonus" class="card-val">0</div></div>
             <div class="card" style="background:#e67e22"><h3>التارجت</h3><div id="stat-target" class="card-val">-</div></div>
         </div>
@@ -62,7 +64,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية (المحصلة)</th><th>سعر الوحدة (شامل)</th><th>التصنيف</th><th>النسبة</th><th>البونص</th><th>تاريخ السداد</th>
+                        <th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية</th><th>سعر الوحدة (شامل)</th><th>التصنيف</th><th>النسبة</th><th>البونص</th><th>تاريخ الاعتماد</th>
                     </tr>
                 </thead>
                 <tbody id="mainRows"></tbody>
@@ -102,12 +104,11 @@
     let creditNotesMap = {}; 
     let computed = [], suspended = [];
 
-    let productRules = JSON.parse(localStorage.getItem('pRules_v24') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('tRules_v24') || "{}");
-    let repOverrides = JSON.parse(localStorage.getItem('repOverrides_v24') || "{}");
-    let manualDeferred = JSON.parse(localStorage.getItem('manualDef_v24') || "[]");
+    let productRules = JSON.parse(localStorage.getItem('pRules_v25') || "{}");
+    let targetRules = JSON.parse(localStorage.getItem('tRules_v25') || "{}");
+    let repOverrides = JSON.parse(localStorage.getItem('repOverrides_v25') || "{}");
+    let manualDeferred = JSON.parse(localStorage.getItem('manualDef_v25') || "[]");
 
-    // قاموس الأسعار (كما هو في V23)
     const AUTO_RULES = [
         { keys: ["ورق الكاشير", "80*70", "8070"], pp: 69, bp: 68 },
         { keys: ["A4"], pp: 58, bp: 57 },
@@ -127,87 +128,99 @@
     async function fetchData() {
         const month = document.getElementById('targetMonth').value;
         const btn = document.querySelector('.btn-acc');
+        const statusSpan = document.getElementById('sys-status');
+        
         if(!month) return alert("حدد الشهر!");
         
-        btn.innerHTML = 'جاري التحليل العميق...';
+        btn.innerHTML = 'جاري الجلب...';
+        statusSpan.innerText = "يتصل بالسيرفر...";
+        
         try {
+            // نرسل الشهر فقط كمعلومة إضافية لكن السيرفر سيجلب الكل
             const res = await fetch(`/api/get-data?month=${month}`);
             const data = await res.json();
             
             rawInvoices = data.invoices || [];
             productsMap = data.productsMap || {};
             
-            // مطابقة الوحدات بدقة
             unitsMap = {};
             if(data.product_units) {
-                data.product_units.forEach(u => {
-                    // في قيود: id هو مفتاح الوحدة
-                    unitsMap[u.id] = parseFloat(u.conversion_factor || u.representation || 1);
-                });
+                data.product_units.forEach(u => unitsMap[u.id] = parseFloat(u.conversion_factor || u.representation || 1));
             }
             
             creditNotesMap = {};
             if(data.credit_notes) data.credit_notes.forEach(cn => creditNotesMap[cn.id] = cn);
             
             creators = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
+            
+            statusSpan.innerText = `تم جلب ${rawInvoices.length} فاتورة. جاري المعالجة...`;
+            
             updateFilterDropdown();
             applySmartRules(); 
             processLogic();
-            btn.innerHTML = 'تم التحديث';
-        } catch (e) { console.error(e); alert("خطأ اتصال"); btn.innerHTML = 'فشل'; }
-    }
-
-    function applySmartRules(force = false) {
-        let updatedCount = 0;
-        Object.keys(productsMap).forEach(id => {
-            if (!force && productRules[id] && (productRules[id].premiumPrice > 0 || productRules[id].premiumPct > 0)) return;
-            const prodName = productsMap[id].name.toLowerCase();
-            for (let rule of AUTO_RULES) {
-                if (rule.keys.some(k => prodName.includes(k.toLowerCase()))) {
-                    productRules[id] = { factor: productRules[id]?.factor || 0, premiumPrice: rule.pp, premiumPct: rule.ppct||2, basePrice: rule.bp, basePct: rule.bpct||1 };
-                    updatedCount++; break;
-                }
-            }
-        });
-        if (updatedCount > 0) localStorage.setItem('pRules_v24', JSON.stringify(productRules));
+            
+            btn.innerHTML = 'تحديث البيانات';
+            statusSpan.innerText = `تم بنجاح. (عدد الفواتير الكلي: ${rawInvoices.length})`;
+            
+        } catch (e) { 
+            console.error(e); 
+            alert("خطأ: " + e.message); 
+            btn.innerHTML = 'فشل'; 
+            statusSpan.innerText = "حدث خطأ في الاتصال";
+        }
     }
 
     function processLogic() {
         computed = []; suspended = [];
         const tMonthStr = document.getElementById('targetMonth').value;
-        const [tYear, tMonth] = tMonthStr.split('-').map(Number); // مثلاً 2025 و 12
+        const [tYear, tMonth] = tMonthStr.split('-').map(Number);
 
         rawInvoices.forEach(inv => {
             const isManualDef = manualDeferred.includes(inv.id);
             const currentRep = repOverrides[inv.id] || inv.created_by;
 
-            // 1. الفحص الصارم للمدفوعات (Payments Audit)
-            // هل يوجد دفع تم في هذا الشهر المحدد؟
-            let amountPaidInTargetMonth = 0;
-            let paidDateStr = "-";
+            // --- المنطق المرن للتاريخ (The Flexible Logic) ---
+            let isEligible = false;
+            let displayDate = inv.issue_date;
+            let paidRatio = 1; // الافتراضي
+
+            // 1. محاولة العثور على سداد حقيقي
+            let foundPayment = false;
+            let amountPaidInMonth = 0;
             
             if (inv.payments && inv.payments.length > 0) {
                 inv.payments.forEach(pay => {
                     const pDate = new Date(pay.date);
-                    // هل تاريخ الدفع يطابق الشهر والسنة المستهدفين؟
                     if (pDate.getMonth() + 1 === tMonth && pDate.getFullYear() === tYear) {
-                        amountPaidInTargetMonth += parseFloat(pay.amount);
-                        paidDateStr = pay.date;
+                        amountPaidInMonth += parseFloat(pay.amount);
+                        displayDate = pay.date; // نستخدم تاريخ السداد
+                        foundPayment = true;
                     }
                 });
             }
 
-            // نسبة ما تم دفعه هذا الشهر من إجمالي الفاتورة
-            // (لمعالجة الفواتير المدفوعة جزئياً)
-            const invTotal = parseFloat(inv.total) || 1;
-            const paidRatio = amountPaidInTargetMonth / invTotal;
+            if (foundPayment) {
+                // الحالة المثالية: وجدنا سداد في هذا الشهر
+                isEligible = true;
+                const total = parseFloat(inv.total) || 1;
+                paidRatio = amountPaidInMonth / total;
+            } else {
+                // 2. الخطة البديلة (Fallback): إذا لم نجد سداد، هل تاريخ الفاتورة في هذا الشهر؟
+                // هذا يضمن ظهور الفواتير الجديدة حتى لو لم تربط الدفعات بعد
+                const iDate = new Date(inv.issue_date);
+                if (iDate.getMonth() + 1 === tMonth && iDate.getFullYear() === tYear) {
+                    if (inv.status === 'Paid') {
+                        isEligible = true;
+                        paidRatio = 1; // نفترض أنها دفعت بالكامل لأن حالتها Paid
+                        displayDate = inv.issue_date + " (تاريخ الفاتورة)";
+                    }
+                }
+            }
+            
+            // إذا كانت معتمدة (آجلة) ولم يحن سدادها
+            const isPending = (inv.status === 'Approved' || inv.status === 'Partially Paid') && !isEligible;
 
-            // إذا لم يتم دفع أي شيء في هذا الشهر، فهي ليست مستحقة الآن
-            // (إما أنها مدفوعة قديماً، أو لم تدفع بعد)
-            const isEligibleNow = amountPaidInTargetMonth > 0 && !isManualDef;
-            const isPending = (inv.status === 'Approved' || inv.status === 'Partially Paid') && !isEligibleNow;
-
-            // المرتجعات (كما هي)
+            // المرتجعات
             let specificReturns = {};
             if(inv.allocations) {
                 inv.allocations.forEach(alloc => {
@@ -224,34 +237,26 @@
                 const pid = item.product_id;
                 const rule = productRules[pid] || {};
 
-                // --- استخراج السعر الحقيقي من السطر ---
-                // unit_price في قيود غالباً غير شامل الضريبة، نضيف 15%
-                // تأكد من الإعدادات، لكن الافتراضي في السعودية هو إضافة الضريبة
+                // استخراج السعر + الضريبة
                 const rawPrice = parseFloat(item.unit_price);
                 const taxMultiplier = 1 + (parseFloat(item.tax_percent || 0) / 100);
                 const priceWithTax = rawPrice * taxMultiplier;
 
-                // --- تحويل الوحدات ---
-                // نستخدم unit_type من السطر ونبحث عنه في خريطة الوحدات
+                // الوحدات
                 let unitFactor = unitsMap[item.unit_type] || 1; 
-                // إذا كان هناك تعديل يدوي نأخذه
                 if (parseFloat(rule.factor) > 0) unitFactor = parseFloat(rule.factor);
-                
-                // سعر الكرتون للمقارنة
                 const cartonPrice = priceWithTax * unitFactor;
 
                 // الكمية
                 const originalQty = parseFloat(item.quantity);
                 const netQty = Math.max(0, originalQty - (specificReturns[pid] || 0));
                 
-                // **الكمية المحتسبة للبونص**: هي الكمية الصافية * نسبة المبلغ المدفوع هذا الشهر
-                // إذا دفعت الفاتورة بالكامل هذا الشهر -> Ratio = 1 -> تحسب الكمية كاملة
-                // إذا دفعت قديماً -> Ratio = 0 -> لا تحسب
+                // الكمية المحتسبة (بناء على نسبة السداد)
                 const bonusQty = netQty * paidRatio;
 
-                if (bonusQty <= 0.001 && isEligibleNow) return; // لا شيء يحسب
+                if (bonusQty <= 0.001 && isEligible) return;
 
-                const totalRowSales = priceWithTax * bonusQty; // المبيعات المحتسبة لهذا الشهر
+                const totalRowSales = priceWithTax * bonusQty;
 
                 // Waterfall Logic
                 let pct = 0; let tier = "أقل من الحد"; let badge = "badge-r";
@@ -266,18 +271,16 @@
                 
                 const record = { 
                     invId: inv.id, ref: inv.reference, rep: currentRep, 
-                    prod: item.product_name, date: paidDateStr, 
+                    prod: item.product_name, date: displayDate, 
                     sellCarton: cartonPrice, tier, badge, pct, bonus, total: totalRowSales,
                     qty: bonusQty.toFixed(1)
                 };
 
-                if (isEligibleNow) {
+                if (isEligible && !isManualDef) {
                     computed.push(record);
                 } else if (isPending) {
-                    // للمعلق: نعرض الكمية كاملة كـ "متوقع"
                     record.qty = netQty.toFixed(1);
                     record.bonus = (priceWithTax * netQty * (pct/100)); 
-                    record.date = inv.issue_date;
                     suspended.push(record);
                 }
             });
@@ -285,7 +288,7 @@
         renderUI();
     }
 
-    // دوال العرض (Render) والحفظ (Save) والتصدير (Export) - مطابقة للنسخ السابقة
+    // (باقي الدوال: updateFilterDropdown, renderUI, renderSuspended, renderProductRules, saveProductRules, renderTargetTable, saveTargetRules, exportBackup, importBackup - كما هي)
     function updateFilterDropdown() { const s=document.getElementById('creatorFilter'); const v=s.value; s.innerHTML='<option value="all">الكل</option>'; creators.forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`); s.value=v; }
     function renderUI() {
         const rows = document.getElementById('mainRows'); rows.innerHTML = '';
@@ -294,7 +297,7 @@
         let totalS = 0, totalB = 0;
         filtered.forEach(r => {
             totalS += r.total; totalB += r.bonus;
-            rows.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td style="font-size:0.9em">${r.prod}</td><td>${r.qty}</td><td>${r.sellCarton.toFixed(2)}</td><td><span class="badge ${r.badge}">${r.tier}</span></td><td>${r.pct}%</td><td style="font-weight:bold">${r.bonus.toFixed(2)}</td><td>${r.date}</td></tr>`;
+            rows.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td style="font-size:0.9em">${r.prod}</td><td>${r.qty}</td><td>${r.sellCarton.toFixed(2)}</td><td><span class="badge ${r.badge}">${r.tier}</span></td><td>${r.pct}%</td><td style="font-weight:bold">${r.bonus.toFixed(2)}</td><td style="font-size:0.8em">${r.date}</td></tr>`;
         });
         document.getElementById('stat-sales').innerText = totalS.toLocaleString();
         document.getElementById('stat-bonus').innerText = totalB.toLocaleString();
@@ -302,11 +305,12 @@
     }
     function renderSuspended() { const r=document.getElementById('suspRows'); r.innerHTML=''; suspended.filter(d=>document.getElementById('creatorFilter').value==='all'||d.rep===document.getElementById('creatorFilter').value).forEach(x=>{ r.innerHTML+=`<tr><td>${x.ref}</td><td>${x.rep}</td><td>${x.prod}</td><td>${x.date}</td><td>${x.bonus.toFixed(2)}</td></tr>`; }); }
     function renderProductRules() { const r=document.getElementById('prodRows'); r.innerHTML=''; Object.keys(productsMap).forEach(k=>{ const rule=productRules[k]||{}; const isAuto=AUTO_RULES.some(a=>a.keys.some(z=>productsMap[k].name.includes(z))); r.innerHTML+=`<tr><td>${isAuto?'<span class="auto-tag">T</span>':''}${productsMap[k].name}</td><td><input type="number" class="tbl-input" id="f_${k}" value="${rule.factor||0}"></td><td><input type="number" class="tbl-input" id="pp_${k}" value="${rule.premiumPrice||0}"></td><td><input type="number" class="tbl-input" id="ppct_${k}" value="${rule.premiumPct||2}"></td><td><input type="number" class="tbl-input" id="bp_${k}" value="${rule.basePrice||0}"></td><td><input type="number" class="tbl-input" id="bpct_${k}" value="${rule.basePct||1}"></td></tr>`; }); }
-    function saveProductRules() { Object.keys(productsMap).forEach(k=>{ productRules[k]={factor:parseFloat(document.getElementById(`f_${k}`).value)||0, premiumPrice:parseFloat(document.getElementById(`pp_${k}`).value)||0, premiumPct:parseFloat(document.getElementById(`ppct_${k}`).value)||0, basePrice:parseFloat(document.getElementById(`bp_${k}`).value)||0, basePct:parseFloat(document.getElementById(`bpct_${k}`).value)||0}; }); localStorage.setItem('pRules_v24', JSON.stringify(productRules)); applySmartRules(); processLogic(); }
-    function saveTargetRules() { creators.forEach(c=>{ targetRules[c]={amt:parseFloat(document.getElementById(`ta_${c}`)?.value)||0, rwd:parseFloat(document.getElementById(`tr_${c}`)?.value)||0, blk:document.getElementById(`tk_${c}`)?.checked}; }); localStorage.setItem('tRules_v24', JSON.stringify(targetRules)); processLogic(); }
+    function saveProductRules() { Object.keys(productsMap).forEach(k=>{ productRules[k]={factor:parseFloat(document.getElementById(`f_${k}`).value)||0, premiumPrice:parseFloat(document.getElementById(`pp_${k}`).value)||0, premiumPct:parseFloat(document.getElementById(`ppct_${k}`).value)||0, basePrice:parseFloat(document.getElementById(`bp_${k}`).value)||0, basePct:parseFloat(document.getElementById(`bpct_${k}`).value)||0}; }); localStorage.setItem('pRules_v25', JSON.stringify(productRules)); applySmartRules(); processLogic(); }
+    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]&&(productRules[k].premiumPrice>0))return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.bpct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v25', JSON.stringify(productRules)); }
+    function saveTargetRules() { creators.forEach(c=>{ targetRules[c]={amt:parseFloat(document.getElementById(`ta_${c}`)?.value)||0, rwd:parseFloat(document.getElementById(`tr_${c}`)?.value)||0, blk:document.getElementById(`tk_${c}`)?.checked}; }); localStorage.setItem('tRules_v25', JSON.stringify(targetRules)); processLogic(); }
     function renderTargetTable() { const r=document.getElementById('targetRows'); r.innerHTML=''; creators.forEach(c=>{ const tr=targetRules[c]||{}; const sales=computed.filter(d=>d.rep===c).reduce((a,b)=>a+b.total,0); r.innerHTML+=`<tr><td>${c}</td><td>${sales.toLocaleString()}</td><td><input type="number" class="tbl-input" id="ta_${c}" value="${tr.amt||0}"></td><td><input type="number" class="tbl-input" id="tr_${c}" value="${tr.rwd||0}"></td><td><input type="checkbox" id="tk_${c}" ${tr.blk?'checked':''}></td><td>${sales>=tr.amt?'✅':'❌'}</td></tr>`; }); }
-    function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules, rep:repOverrides})],{type:'application/json'}); saveAs(b, "Bonus_Backup_V24.json"); }
-    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; repOverrides=d.rep||{}; localStorage.setItem('pRules_v24',JSON.stringify(productRules)); processLogic(); alert('تم'); }; r.readAsText(e.target.files[0]); }
+    function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules, rep:repOverrides})],{type:'application/json'}); saveAs(b, "Bonus_Backup_V25.json"); }
+    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; repOverrides=d.rep||{}; localStorage.setItem('pRules_v25',JSON.stringify(productRules)); processLogic(); alert('تم'); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
 </html>
