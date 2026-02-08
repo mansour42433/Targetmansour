@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام البونص الاحترافي V13 - مع عرض الآجلة والمرتجعات</title>
+<title>نظام البونص الاحترافي V14 - إصلاح عرض الآجلة والمرتجعات</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -385,8 +385,14 @@
                 }
             }
 
-            // فلترة الشهر (يجب أن يكون تاريخ الاستحقاق/الإصدار داخل الشهر المحدد)
-            if (checkDate.getMonth() + 1 !== tMonth || checkDate.getFullYear() !== tYear) return;
+            // فلترة الشهر
+            // الفواتير المستحقة (Eligible): يجب أن يكون تاريخ السداد في الشهر المختار
+            // الفواتير المعلقة (!Eligible): تظهر دائماً في "المعلق" بغض النظر عن التاريخ
+            if (isEligible) {
+                // فاتورة مستحقة: يجب أن يكون تاريخ السداد في الشهر المختار
+                if (checkDate.getMonth() + 1 !== tMonth || checkDate.getFullYear() !== tYear) return;
+            }
+            // الفواتير المعلقة: لا تحتاج فلترة تاريخية (تظهر دائماً)
 
             // ج) حساب البونص لكل سطر (مع خصم المرتجعات)
             
@@ -573,14 +579,17 @@
                 <td style="font-weight:bold; color:var(--acc)">${bonusTxt}</td>
             </tr>`;
         });
-    }
-
-    // --- 4. رسم جدول المعلق ---
+    }    // --- 4. رسم جدول المعلق ---
     function renderSuspendedTable() {
         const tbody = document.getElementById('suspendedRows');
         tbody.innerHTML = '';
-        const filter = document.getElementById('creatorFilter').value;
-        const filtered = suspendedData.filter(d => filter === 'all' || d.creator === filter);
+        const filtered = suspendedData;
+        
+        console.log('=== renderSuspendedTable ===');
+        console.log('عدد الفواتير المعلقة:', filtered.length);
+        if(filtered.length > 0) {
+            console.log('عينة من الفواتير المعلقة:', filtered.slice(0, 3));
+        }
         
         let totalSuspended = filtered.reduce((a,b)=>a+b.bonus,0);
         document.getElementById('stat-suspended-bonus').innerText = totalSuspended.toLocaleString();
@@ -638,11 +647,15 @@
         let totalReturnsAmount = 0;
         let affectedInvoicesCount = 0;
         
+        console.log('=== renderReturnsTable ===');
+        console.log('عدد الفواتير المجلوبة:', rawInvoices.length);
+        
         // فحص جميع الفواتير للبحث عن allocations من نوع CreditNote
         rawInvoices.forEach(inv => {
             if(inv.allocations && inv.allocations.length > 0) {
                 inv.allocations.forEach(alloc => {
                     if(alloc.source_type === 'CreditNote') {
+                        console.log('وجدت مرتجع:', inv.reference, alloc);
                         affectedInvoicesCount++;
                         const creditAmount = parseFloat(alloc.amount || 0);
                         const invoiceTotal = parseFloat(inv.total || 0);
