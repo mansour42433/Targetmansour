@@ -1,26 +1,26 @@
 export default async function handler(req, res) {
     const API_KEY = process.env.QOYOD_API_KEY;
-    // لم نعد نستخدم الشهر هنا للفلترة، سنجلب الكل ونفلتر في الواجهة لضمان ظهور البيانات
-    // const targetMonth = req.query.month; 
-
     if (!API_KEY) return res.status(500).json({ error: "API Key missing" });
 
     const headers = { "API-KEY": API_KEY, "Content-Type": "application/json" };
 
     try {
-        // قمنا بإزالة فلتر التاريخ من الرابط لضمان جلب الفواتير أولاً
-        // نجلب آخر 3000 فاتورة (رقم كبير لضمان تغطية السنة)
+        // نحدد تاريخ بداية واسع (من بداية 2024 مثلاً) لضمان عدم ضياع الآجل
+        // ولكن الأهم: الترتيب (q[s]=issue_date+desc) ليجلب الجديد أولاً
         const urls = [
-            `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Partially Paid&q[status_in][]=Approved&limit=3000`,
-            `https://api.qoyod.com/2.0/products?limit=3000`,
+            // لاحظ الإضافة: &q[s]=issue_date+desc
+            `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Partially Paid&q[status_in][]=Approved&q[s]=issue_date+desc&limit=2500`,
+            `https://api.qoyod.com/2.0/products?limit=2500`,
             `https://api.qoyod.com/2.0/product_units?limit=1000`,
-            `https://api.qoyod.com/2.0/credit_notes?limit=1000` 
+            `https://api.qoyod.com/2.0/credit_notes?q[s]=issue_date+desc&limit=1000`
         ];
 
         const results = await Promise.allSettled(urls.map(url => fetch(url, { headers })));
         const data = { invoices: [], productsMap: {}, product_units: [], credit_notes: [] };
 
         if (results[0].status === 'fulfilled' && results[0].value.ok) data.invoices = (await results[0].value.json()).invoices;
+        else if (results[0].status === 'rejected') throw new Error("فشل جلب الفواتير");
+
         if (results[1].status === 'fulfilled' && results[1].value.ok) {
             const pData = await results[1].value.json();
             pData.products.forEach(p => { data.productsMap[p.id] = { name: p.name_ar || p.name_en, sku: p.sku }; });
