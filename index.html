@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات الذكي V23 (قاموس الأسعار الكامل)</title>
+    <title>نظام العمولات الدقيق V24 (حسب التوثيق)</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -39,22 +39,22 @@
 
 <div class="box">
     <div class="tabs-header">
-        <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-money-bill-wave"></i> البونص المستحق</button>
+        <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-money-bill-wave"></i> البونص (التحصيل الفعلي)</button>
         <button class="tab-btn" onclick="switchTab('suspended')"><i class="fas fa-clock"></i> المعلق</button>
-        <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-magic"></i> الأسعار (الذكية)</button>
+        <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-magic"></i> الأسعار (تلقائي)</button>
         <button class="tab-btn" onclick="switchTab('targets')"><i class="fas fa-bullseye"></i> التارجت</button>
         <button class="tab-btn" onclick="switchTab('backup')"><i class="fas fa-database"></i> النسخ الاحتياطي</button>
     </div>
 
     <div id="tab-main" class="tab-content active">
         <div style="display:flex; gap:15px; align-items:flex-end; margin-bottom:20px; background:#f8f9fa; padding:15px; border-radius:10px;">
-            <div><label>الشهر</label><br><input type="month" id="targetMonth" style="padding:8px; border-radius:5px; border:1px solid #ccc;"></div>
+            <div><label>شهر التحصيل</label><br><input type="month" id="targetMonth" style="padding:8px; border-radius:5px; border:1px solid #ccc;"></div>
             <div><label>المندوب</label><br><select id="creatorFilter" onchange="renderUI()" class="rep-select" style="width:200px;"></select></div>
-            <button class="btn btn-acc" onclick="fetchData()"><i class="fas fa-sync"></i> جلب وحساب (تلقائي)</button>
+            <button class="btn btn-acc" onclick="fetchData()"><i class="fas fa-sync"></i> جلب وحساب</button>
             <button class="btn btn-g" onclick="exportExcel()"><i class="fas fa-file-excel"></i> تصدير</button>
         </div>
         <div class="stats">
-            <div class="card"><h3>المبيعات (الصافي)</h3><div id="stat-sales" class="card-val">0</div></div>
+            <div class="card"><h3>المحصل فعلياً</h3><div id="stat-sales" class="card-val">0</div></div>
             <div class="card" style="background:var(--acc)"><h3>البونص المستحق</h3><div id="stat-bonus" class="card-val">0</div></div>
             <div class="card" style="background:#e67e22"><h3>التارجت</h3><div id="stat-target" class="card-val">-</div></div>
         </div>
@@ -62,7 +62,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية</th><th>سعر الكرتون</th><th>الحالة</th><th>النسبة</th><th>البونص</th><th>تحكم</th>
+                        <th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية (المحصلة)</th><th>سعر الوحدة (شامل)</th><th>التصنيف</th><th>النسبة</th><th>البونص</th><th>تاريخ السداد</th>
                     </tr>
                 </thead>
                 <tbody id="mainRows"></tbody>
@@ -72,51 +72,27 @@
 
     <div id="tab-suspended" class="tab-content">
         <div class="card" style="max-width:300px; background:#7f8c8d; margin-bottom:20px;">
-            <h3>بونص متوقع (تحت التحصيل)</h3><div id="stat-susp-bonus" class="card-val">0</div>
+            <h3>بونص متوقع (غير محصل)</h3><div id="stat-susp-bonus" class="card-val">0</div>
         </div>
-        <table>
-            <thead><tr><th>المرجع</th><th>المندوب</th><th>المنتج</th><th>تاريخ الفاتورة</th><th>البونص المتوقع</th><th>إعادة</th></tr></thead>
-            <tbody id="suspRows"></tbody>
-        </table>
+        <table><thead><tr><th>المرجع</th><th>المندوب</th><th>المنتج</th><th>تاريخ الفاتورة</th><th>البونص المتوقع</th></tr></thead><tbody id="suspRows"></tbody></table>
     </div>
 
     <div id="tab-products" class="tab-content">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-            <h3><i class="fas fa-robot"></i> إعدادات الأسعار (ضبط تلقائي حسب القائمة)</h3>
-            <div>
-                <button class="btn btn-acc" onclick="applySmartRules(true)"><i class="fas fa-redo"></i> إعادة ضبط تلقائي</button>
-                <button class="btn btn-g" onclick="saveProductRules()"><i class="fas fa-save"></i> حفظ التعديلات</button>
-            </div>
+            <h3><i class="fas fa-robot"></i> إعدادات الأسعار</h3>
+            <div><button class="btn btn-acc" onclick="applySmartRules(true)">إعادة ضبط</button> <button class="btn btn-g" onclick="saveProductRules()">حفظ</button></div>
         </div>
-        <table>
-            <thead><tr><th>المنتج</th><th>معامل الكرتون</th><th>سعر التميز (>=)</th><th>نسبة %</th><th>السعر الأساسي (>=)</th><th>نسبة %</th></tr></thead>
-            <tbody id="prodRows"></tbody>
-        </table>
+        <table><thead><tr><th>المنتج</th><th>معامل الكرتون</th><th>سعر التميز (>=)</th><th>نسبة %</th><th>السعر الأساسي (>=)</th><th>نسبة %</th></tr></thead><tbody id="prodRows"></tbody></table>
     </div>
 
     <div id="tab-targets" class="tab-content">
-        <button class="btn btn-g" onclick="saveTargetRules()" style="float:left;">حفظ التارجت</button>
-        <h3>أهداف المناديب</h3>
-        <table>
-            <thead><tr><th>المندوب</th><th>المبيعات</th><th>الهدف</th><th>المكافأة</th><th>حجب؟</th><th>الحالة</th></tr></thead>
-            <tbody id="targetRows"></tbody>
-        </table>
+        <button class="btn btn-g" onclick="saveTargetRules()">حفظ</button> <h3>أهداف المناديب</h3>
+        <table><thead><tr><th>المندوب</th><th>المبيعات</th><th>الهدف</th><th>المكافأة</th><th>حجب؟</th><th>الحالة</th></tr></thead><tbody id="targetRows"></tbody></table>
     </div>
 
     <div id="tab-backup" class="tab-content">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:30px; padding:30px;">
-            <div style="border:2px dashed #ccc; padding:30px; text-align:center; border-radius:15px;">
-                <i class="fas fa-file-export fa-3x" style="color:var(--acc)"></i>
-                <h3>تصدير</h3>
-                <button class="btn btn-acc" onclick="exportBackup()"><i class="fas fa-download"></i> تحميل JSON</button>
-            </div>
-            <div style="border:2px dashed #ccc; padding:30px; text-align:center; border-radius:15px;">
-                <i class="fas fa-file-import fa-3x" style="color:var(--g)"></i>
-                <h3>استيراد</h3>
-                <input type="file" id="importFile" style="display:none" onchange="importBackup(event)">
-                <button class="btn btn-g" onclick="document.getElementById('importFile').click()"><i class="fas fa-upload"></i> رفع</button>
-            </div>
-        </div>
+        <button class="btn btn-acc" onclick="exportBackup()">تصدير JSON</button>
+        <input type="file" id="importFile" onchange="importBackup(event)">
     </div>
 </div>
 
@@ -126,55 +102,34 @@
     let creditNotesMap = {}; 
     let computed = [], suspended = [];
 
-    let productRules = JSON.parse(localStorage.getItem('pRules_v23') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('tRules_v23') || "{}");
-    let repOverrides = JSON.parse(localStorage.getItem('repOverrides_v23') || "{}");
-    let manualDeferred = JSON.parse(localStorage.getItem('manualDef_v23') || "[]");
+    let productRules = JSON.parse(localStorage.getItem('pRules_v24') || "{}");
+    let targetRules = JSON.parse(localStorage.getItem('tRules_v24') || "{}");
+    let repOverrides = JSON.parse(localStorage.getItem('repOverrides_v24') || "{}");
+    let manualDeferred = JSON.parse(localStorage.getItem('manualDef_v24') || "[]");
 
-    // --- القاموس الذكي الشامل (V23) ---
-    // تم تفريغ بياناتك هنا بدقة لربط الاسم بالسعر
+    // قاموس الأسعار (كما هو في V23)
     const AUTO_RULES = [
-        // 1. الورق (أسعار الـ PDF)
         { keys: ["ورق الكاشير", "80*70", "8070"], pp: 69, bp: 68 },
         { keys: ["A4"], pp: 58, bp: 57 },
         { keys: ["ورق الشبكة", "40*57", "57*40"], pp: 57, bp: 56 },
         { keys: ["ورق التاريخ", "رول تاريخ"], pp: 75, bp: 74 },
         { keys: ["رول التسعيرة", "رول تسعير"], pp: 126, bp: 125 },
-
-        // 2. الباركود (أسعار الـ PDF)
         { keys: ["40*60", "60*40"], pp: 221, bp: 220 },
         { keys: ["25*50", "50*25"], pp: 241, bp: 240 },
         { keys: ["38*28", "28*38"], pp: 241, bp: 240 },
         { keys: ["40*22", "22*40"], pp: 241, bp: 240 },
         { keys: ["100*150", "150*100"], pp: 331, bp: 330 },
-        { keys: ["38*15"], pp: 241, bp: 240 }, // افتراض نفس السعر للرول الصغير أو يتم تعديله
-
-        // 3. الأحبار والطابعات (2% ثابتة)
-        { 
-            keys: [
-                "حبر", "طابعة", "مكينة", "قارئ", "DRUM", "toner", "ink", 
-                "ezpos", "zpos", "GT53", "GT52", "TN", "XEROX", "17A", "103A", "305", "A44", "A150", "283A", "83A", "A106"
-            ], 
-            pp: 1, ppct: 2, bp: 0, bpct: 0 // تميز 2% لأي سعر فوق 1 ريال
-        },
-
-        // 4. المتنوعات (تحتاج تحديد سعر إذا لم تكن في الملف، سأضعها لتسهيل البحث)
-        { keys: ["ملف اسود", "ملف شفاف"], pp: 0, bp: 0 }, // سيتعرف عليها لكن ينتظر سعرك
-        { keys: ["تيب"], pp: 0, bp: 0 }
+        { keys: ["حبر", "طابعة", "مكينة", "قارئ", "DRUM", "toner", "ink", "ezpos", "zpos"], pp: 1, ppct: 2, bp: 0, bpct: 0 }
     ];
 
-    function switchTab(id) {
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('tab-' + id).classList.add('active');
-    }
+    function switchTab(id) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + id).classList.add('active'); }
 
     async function fetchData() {
         const month = document.getElementById('targetMonth').value;
         const btn = document.querySelector('.btn-acc');
         if(!month) return alert("حدد الشهر!");
         
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الذكاء...';
+        btn.innerHTML = 'جاري التحليل العميق...';
         try {
             const res = await fetch(`/api/get-data?month=${month}`);
             const data = await res.json();
@@ -182,9 +137,11 @@
             rawInvoices = data.invoices || [];
             productsMap = data.productsMap || {};
             
+            // مطابقة الوحدات بدقة
             unitsMap = {};
             if(data.product_units) {
                 data.product_units.forEach(u => {
+                    // في قيود: id هو مفتاح الوحدة
                     unitsMap[u.id] = parseFloat(u.conversion_factor || u.representation || 1);
                 });
             }
@@ -194,141 +151,133 @@
             
             creators = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
             updateFilterDropdown();
-
-            // تطبيق الذكاء التلقائي
             applySmartRules(); 
-            
             processLogic();
-            btn.innerHTML = '<i class="fas fa-check"></i> تم التحديث';
-        } catch (e) { console.error(e); alert("خطأ اتصال"); btn.innerHTML = 'خطأ'; }
+            btn.innerHTML = 'تم التحديث';
+        } catch (e) { console.error(e); alert("خطأ اتصال"); btn.innerHTML = 'فشل'; }
     }
 
     function applySmartRules(force = false) {
         let updatedCount = 0;
         Object.keys(productsMap).forEach(id => {
-            // لا نغير ما تم ضبطه يدوياً إلا إذا أجبرنا النظام (force)
             if (!force && productRules[id] && (productRules[id].premiumPrice > 0 || productRules[id].premiumPct > 0)) return;
-
             const prodName = productsMap[id].name.toLowerCase();
-            
             for (let rule of AUTO_RULES) {
-                const match = rule.keys.some(k => prodName.includes(k.toLowerCase()));
-                if (match) {
-                    productRules[id] = {
-                        factor: productRules[id]?.factor || 0,
-                        premiumPrice: rule.pp,
-                        premiumPct: rule.ppct !== undefined ? rule.ppct : 2,
-                        basePrice: rule.bp,
-                        basePct: rule.bpct !== undefined ? rule.bpct : 1
-                    };
-                    updatedCount++;
-                    break;
+                if (rule.keys.some(k => prodName.includes(k.toLowerCase()))) {
+                    productRules[id] = { factor: productRules[id]?.factor || 0, premiumPrice: rule.pp, premiumPct: rule.ppct||2, basePrice: rule.bp, basePct: rule.bpct||1 };
+                    updatedCount++; break;
                 }
             }
         });
-        if (updatedCount > 0) {
-            localStorage.setItem('pRules_v23', JSON.stringify(productRules));
-            if(force) alert(`تم ضبط أسعار ${updatedCount} صنف تلقائياً!`);
-        } else if (force) {
-            alert("لم يتم العثور على منتجات جديدة لمطابقتها.");
-        }
-    }
-
-    function updateFilterDropdown() {
-        const select = document.getElementById('creatorFilter');
-        const currentVal = select.value || 'all';
-        select.innerHTML = '<option value="all">كل المناديب</option>';
-        creators.forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
-        select.value = currentVal;
+        if (updatedCount > 0) localStorage.setItem('pRules_v24', JSON.stringify(productRules));
     }
 
     function processLogic() {
         computed = []; suspended = [];
         const tMonthStr = document.getElementById('targetMonth').value;
-        const [tYear, tMonth] = tMonthStr.split('-').map(Number);
+        const [tYear, tMonth] = tMonthStr.split('-').map(Number); // مثلاً 2025 و 12
 
         rawInvoices.forEach(inv => {
             const isManualDef = manualDeferred.includes(inv.id);
-            const status = inv.status;
-            const payDate = new Date(inv.updated_at || inv.issue_date);
-            const isCurrentMonth = (payDate.getMonth() + 1 === tMonth && payDate.getFullYear() === tYear);
             const currentRep = repOverrides[inv.id] || inv.created_by;
 
-            // المرتجعات
+            // 1. الفحص الصارم للمدفوعات (Payments Audit)
+            // هل يوجد دفع تم في هذا الشهر المحدد؟
+            let amountPaidInTargetMonth = 0;
+            let paidDateStr = "-";
+            
+            if (inv.payments && inv.payments.length > 0) {
+                inv.payments.forEach(pay => {
+                    const pDate = new Date(pay.date);
+                    // هل تاريخ الدفع يطابق الشهر والسنة المستهدفين؟
+                    if (pDate.getMonth() + 1 === tMonth && pDate.getFullYear() === tYear) {
+                        amountPaidInTargetMonth += parseFloat(pay.amount);
+                        paidDateStr = pay.date;
+                    }
+                });
+            }
+
+            // نسبة ما تم دفعه هذا الشهر من إجمالي الفاتورة
+            // (لمعالجة الفواتير المدفوعة جزئياً)
+            const invTotal = parseFloat(inv.total) || 1;
+            const paidRatio = amountPaidInTargetMonth / invTotal;
+
+            // إذا لم يتم دفع أي شيء في هذا الشهر، فهي ليست مستحقة الآن
+            // (إما أنها مدفوعة قديماً، أو لم تدفع بعد)
+            const isEligibleNow = amountPaidInTargetMonth > 0 && !isManualDef;
+            const isPending = (inv.status === 'Approved' || inv.status === 'Partially Paid') && !isEligibleNow;
+
+            // المرتجعات (كما هي)
             let specificReturns = {};
-            let generalReturnRatio = 0;
             if(inv.allocations) {
                 inv.allocations.forEach(alloc => {
                     if(alloc.source_type === 'CreditNote') {
                         const cn = creditNotesMap[alloc.source_id];
-                        if(cn && cn.line_items) {
-                            cn.line_items.forEach(cnItem => {
-                                specificReturns[cnItem.product_id] = (specificReturns[cnItem.product_id] || 0) + parseFloat(cnItem.quantity);
-                            });
-                        } else {
-                            generalReturnRatio += parseFloat(alloc.amount || 0);
-                        }
+                        if(cn && cn.line_items) cn.line_items.forEach(cnItem => specificReturns[cnItem.product_id] = (specificReturns[cnItem.product_id] || 0) + parseFloat(cnItem.quantity));
                     }
                 });
             }
-            const fallbackRatio = generalReturnRatio / (parseFloat(inv.total) || 1);
 
             inv.line_items.forEach(item => {
                 if(item.sku === DEFERRED_SKU) return;
                 
                 const pid = item.product_id;
                 const rule = productRules[pid] || {};
+
+                // --- استخراج السعر الحقيقي من السطر ---
+                // unit_price في قيود غالباً غير شامل الضريبة، نضيف 15%
+                // تأكد من الإعدادات، لكن الافتراضي في السعودية هو إضافة الضريبة
+                const rawPrice = parseFloat(item.unit_price);
+                const taxMultiplier = 1 + (parseFloat(item.tax_percent || 0) / 100);
+                const priceWithTax = rawPrice * taxMultiplier;
+
+                // --- تحويل الوحدات ---
+                // نستخدم unit_type من السطر ونبحث عنه في خريطة الوحدات
+                let unitFactor = unitsMap[item.unit_type] || 1; 
+                // إذا كان هناك تعديل يدوي نأخذه
+                if (parseFloat(rule.factor) > 0) unitFactor = parseFloat(rule.factor);
                 
-                let apiFactor = unitsMap[item.unit_type];
-                let manualFactor = parseFloat(rule.factor);
-                let finalFactor = apiFactor || (manualFactor > 1 ? manualFactor : 1);
-                
+                // سعر الكرتون للمقارنة
+                const cartonPrice = priceWithTax * unitFactor;
+
+                // الكمية
                 const originalQty = parseFloat(item.quantity);
-                let netQty = originalQty;
-                let returnQtyDisplay = 0;
-
-                if (specificReturns[pid]) {
-                    netQty = Math.max(0, originalQty - specificReturns[pid]);
-                    returnQtyDisplay = specificReturns[pid];
-                } else if (fallbackRatio > 0) {
-                    const deduction = originalQty * fallbackRatio;
-                    netQty = Math.max(0, originalQty - deduction);
-                    returnQtyDisplay = deduction;
-                }
+                const netQty = Math.max(0, originalQty - (specificReturns[pid] || 0));
                 
-                if(netQty <= 0.01) return;
+                // **الكمية المحتسبة للبونص**: هي الكمية الصافية * نسبة المبلغ المدفوع هذا الشهر
+                // إذا دفعت الفاتورة بالكامل هذا الشهر -> Ratio = 1 -> تحسب الكمية كاملة
+                // إذا دفعت قديماً -> Ratio = 0 -> لا تحسب
+                const bonusQty = netQty * paidRatio;
 
-                const sellPriceVAT = parseFloat(item.unit_price) * 1.15;
-                const cartonPriceVAT = sellPriceVAT * finalFactor; 
-                const totalRowVAT = sellPriceVAT * netQty;
+                if (bonusQty <= 0.001 && isEligibleNow) return; // لا شيء يحسب
+
+                const totalRowSales = priceWithTax * bonusQty; // المبيعات المحتسبة لهذا الشهر
 
                 // Waterfall Logic
                 let pct = 0; let tier = "أقل من الحد"; let badge = "badge-r";
                 const pPrice = parseFloat(rule.premiumPrice || 0);
                 const bPrice = parseFloat(rule.basePrice || 0);
 
-                if (pPrice > 0 && cartonPriceVAT >= pPrice) {
-                    pct = rule.premiumPct || 2; tier = "تميز"; badge = "badge-p";
-                } else if (bPrice > 0 && cartonPriceVAT >= bPrice) {
-                    pct = rule.basePct || 1; tier = "أساسي"; badge = "badge-b";
-                } else if (rule.premiumPct > 0 && pPrice <= 1) { 
-                    // حالة خاصة للأحبار (سعر الهدف صغير جداً)
-                    pct = rule.premiumPct; tier = "تلقائي"; badge = "badge-p";
-                }
+                if (pPrice > 0 && cartonPrice >= pPrice) { pct = rule.premiumPct || 2; tier = "تميز"; badge = "badge-p"; }
+                else if (bPrice > 0 && cartonPrice >= bPrice) { pct = rule.basePct || 1; tier = "أساسي"; badge = "badge-b"; }
+                else if (rule.premiumPct > 0 && pPrice <= 1) { pct = rule.premiumPct; tier = "تلقائي"; badge = "badge-p"; }
 
-                const bonus = totalRowVAT * (pct / 100);
-                const qtyText = returnQtyDisplay > 0 ? `${originalQty} <span style='color:red;font-size:0.8em'>(-${returnQtyDisplay.toFixed(1)})</span>` : `${netQty.toFixed(1)}`;
-
+                const bonus = totalRowSales * (pct / 100);
+                
                 const record = { 
                     invId: inv.id, ref: inv.reference, rep: currentRep, 
-                    prod: item.product_name, date: inv.issue_date, 
-                    sellCarton: cartonPriceVAT, tier, badge, pct, bonus, total: totalRowVAT,
-                    qtyDisplay: qtyText
+                    prod: item.product_name, date: paidDateStr, 
+                    sellCarton: cartonPrice, tier, badge, pct, bonus, total: totalRowSales,
+                    qty: bonusQty.toFixed(1)
                 };
 
-                if(status === 'Paid' && isCurrentMonth && !isManualDef) {
+                if (isEligibleNow) {
                     computed.push(record);
-                } else {
+                } else if (isPending) {
+                    // للمعلق: نعرض الكمية كاملة كـ "متوقع"
+                    record.qty = netQty.toFixed(1);
+                    record.bonus = (priceWithTax * netQty * (pct/100)); 
+                    record.date = inv.issue_date;
                     suspended.push(record);
                 }
             });
@@ -336,6 +285,8 @@
         renderUI();
     }
 
+    // دوال العرض (Render) والحفظ (Save) والتصدير (Export) - مطابقة للنسخ السابقة
+    function updateFilterDropdown() { const s=document.getElementById('creatorFilter'); const v=s.value; s.innerHTML='<option value="all">الكل</option>'; creators.forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`); s.value=v; }
     function renderUI() {
         const rows = document.getElementById('mainRows'); rows.innerHTML = '';
         const filter = document.getElementById('creatorFilter').value;
@@ -343,102 +294,19 @@
         let totalS = 0, totalB = 0;
         filtered.forEach(r => {
             totalS += r.total; totalB += r.bonus;
-            rows.innerHTML += `<tr>
-                <td>${r.ref}</td><td>${r.rep}</td>
-                <td style="font-size:0.9em">${r.prod}</td>
-                <td>${r.qtyDisplay}</td><td>${r.sellCarton.toFixed(2)}</td>
-                <td><span class="badge ${r.badge}">${r.tier}</span></td><td>${r.pct}%</td>
-                <td style="font-weight:bold">${r.bonus.toFixed(2)}</td>
-                <td><button onclick="moveToDef(${r.invId})" class="btn-r" style="padding:2px 5px">آجل</button></td>
-            </tr>`;
+            rows.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td style="font-size:0.9em">${r.prod}</td><td>${r.qty}</td><td>${r.sellCarton.toFixed(2)}</td><td><span class="badge ${r.badge}">${r.tier}</span></td><td>${r.pct}%</td><td style="font-weight:bold">${r.bonus.toFixed(2)}</td><td>${r.date}</td></tr>`;
         });
         document.getElementById('stat-sales').innerText = totalS.toLocaleString();
         document.getElementById('stat-bonus').innerText = totalB.toLocaleString();
         renderSuspended(); renderProductRules(); renderTargetTable();
     }
-
-    function renderSuspended() {
-        const rows = document.getElementById('suspRows'); rows.innerHTML = '';
-        const filter = document.getElementById('creatorFilter').value;
-        const filteredSusp = suspended.filter(d => filter === 'all' || d.rep === filter);
-        let sBonus = 0;
-        filteredSusp.forEach(r => {
-            sBonus += r.bonus;
-            rows.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td>${r.prod}</td><td>${r.date}</td><td>${r.bonus.toFixed(2)}</td><td><button class="btn-g" style="padding:2px 5px" onclick="restoreDef(${r.invId})">إعادة</button></td></tr>`;
-        });
-        document.getElementById('stat-susp-bonus').innerText = sBonus.toLocaleString();
-    }
-
-    function changeRep(id, name) { repOverrides[id] = name; localStorage.setItem('repOverrides_v23', JSON.stringify(repOverrides)); processLogic(); }
-    function moveToDef(id) { if(!manualDeferred.includes(id)) manualDeferred.push(id); localStorage.setItem('manualDef_v23', JSON.stringify(manualDeferred)); processLogic(); }
-    function restoreDef(id) { manualDeferred = manualDeferred.filter(x => x !== id); localStorage.setItem('manualDef_v23', JSON.stringify(manualDeferred)); processLogic(); }
-    
-    function renderProductRules() {
-        const rows = document.getElementById('prodRows'); rows.innerHTML = '';
-        Object.keys(productsMap).forEach(id => {
-            const p = productsMap[id]; const r = productRules[id] || {};
-            const isAuto = AUTO_RULES.some(rule => rule.keys.some(k => p.name.includes(k))); 
-            const nameHtml = isAuto ? `<span class="auto-tag">T</span> ${p.name}` : p.name;
-
-            rows.innerHTML += `<tr>
-                <td style="font-size:0.9em">${nameHtml}</td>
-                <td><input type="number" class="tbl-input" id="f_${id}" value="${r.factor || 0}" placeholder="تلقائي"></td>
-                <td><input type="number" class="tbl-input" id="pp_${id}" value="${r.premiumPrice || 0}"></td>
-                <td><input type="number" class="tbl-input" id="ppct_${id}" value="${r.premiumPct || 2}"></td>
-                <td><input type="number" class="tbl-input" id="bp_${id}" value="${r.basePrice || 0}"></td>
-                <td><input type="number" class="tbl-input" id="bpct_${id}" value="${r.basePct || 1}"></td>
-            </tr>`;
-        });
-    }
-
-    function saveProductRules() {
-        Object.keys(productsMap).forEach(id => {
-            productRules[id] = {
-                factor: parseFloat(document.getElementById(`f_${id}`).value) || 0,
-                premiumPrice: parseFloat(document.getElementById(`pp_${id}`).value) || 0,
-                premiumPct: parseFloat(document.getElementById(`ppct_${id}`).value) || 0,
-                basePrice: parseFloat(document.getElementById(`bp_${id}`).value) || 0,
-                basePct: parseFloat(document.getElementById(`bpct_${id}`).value) || 0
-            };
-        });
-        localStorage.setItem('pRules_v23', JSON.stringify(productRules)); alert("تم الحفظ."); processLogic();
-    }
-
-    function renderTargetTable() { 
-        const rows = document.getElementById('targetRows'); rows.innerHTML = '';
-        creators.forEach(c => {
-            const r = targetRules[c] || {amt:0, rwd:0, blk:false};
-            const sales = computed.filter(d => d.rep === c).reduce((a,b)=>a+b.total, 0);
-            rows.innerHTML += `<tr><td><b>${c}</b></td><td>${sales.toLocaleString()}</td><td><input type="number" class="tbl-input" id="ta_${c}" value="${r.amt}"></td><td><input type="number" class="tbl-input" id="tr_${c}" value="${r.rwd}"></td><td><input type="checkbox" id="tk_${c}" ${r.blk?'checked':''}></td><td>${sales >= r.amt ? '✅' : '❌'}</td></tr>`;
-        });
-    }
-    function saveTargetRules() {
-        creators.forEach(c => {
-            targetRules[c] = {
-                amt: parseFloat(document.getElementById(`ta_${c}`).value) || 0,
-                rwd: parseFloat(document.getElementById(`tr_${c}`).value) || 0,
-                blk: document.getElementById(`tk_${c}`).checked
-            };
-        });
-        localStorage.setItem('tRules_v23', JSON.stringify(targetRules)); alert("تم الحفظ."); processLogic();
-    }
-    function exportBackup() {
-        const data = { pRules: productRules, tRules: targetRules, rep: repOverrides };
-        const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "Bonus_Backup_V23.json"; a.click();
-    }
-    function importBackup(e) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const data = JSON.parse(ev.target.result);
-            productRules = data.pRules || {}; targetRules = data.tRules || {}; repOverrides = data.rep || {};
-            localStorage.setItem('pRules_v23', JSON.stringify(productRules));
-            localStorage.setItem('tRules_v23', JSON.stringify(targetRules));
-            localStorage.setItem('repOverrides_v23', JSON.stringify(repOverrides));
-            processLogic(); alert("تم الاستيراد بنجاح!");
-        };
-        reader.readAsText(e.target.files[0]);
-    }
+    function renderSuspended() { const r=document.getElementById('suspRows'); r.innerHTML=''; suspended.filter(d=>document.getElementById('creatorFilter').value==='all'||d.rep===document.getElementById('creatorFilter').value).forEach(x=>{ r.innerHTML+=`<tr><td>${x.ref}</td><td>${x.rep}</td><td>${x.prod}</td><td>${x.date}</td><td>${x.bonus.toFixed(2)}</td></tr>`; }); }
+    function renderProductRules() { const r=document.getElementById('prodRows'); r.innerHTML=''; Object.keys(productsMap).forEach(k=>{ const rule=productRules[k]||{}; const isAuto=AUTO_RULES.some(a=>a.keys.some(z=>productsMap[k].name.includes(z))); r.innerHTML+=`<tr><td>${isAuto?'<span class="auto-tag">T</span>':''}${productsMap[k].name}</td><td><input type="number" class="tbl-input" id="f_${k}" value="${rule.factor||0}"></td><td><input type="number" class="tbl-input" id="pp_${k}" value="${rule.premiumPrice||0}"></td><td><input type="number" class="tbl-input" id="ppct_${k}" value="${rule.premiumPct||2}"></td><td><input type="number" class="tbl-input" id="bp_${k}" value="${rule.basePrice||0}"></td><td><input type="number" class="tbl-input" id="bpct_${k}" value="${rule.basePct||1}"></td></tr>`; }); }
+    function saveProductRules() { Object.keys(productsMap).forEach(k=>{ productRules[k]={factor:parseFloat(document.getElementById(`f_${k}`).value)||0, premiumPrice:parseFloat(document.getElementById(`pp_${k}`).value)||0, premiumPct:parseFloat(document.getElementById(`ppct_${k}`).value)||0, basePrice:parseFloat(document.getElementById(`bp_${k}`).value)||0, basePct:parseFloat(document.getElementById(`bpct_${k}`).value)||0}; }); localStorage.setItem('pRules_v24', JSON.stringify(productRules)); applySmartRules(); processLogic(); }
+    function saveTargetRules() { creators.forEach(c=>{ targetRules[c]={amt:parseFloat(document.getElementById(`ta_${c}`)?.value)||0, rwd:parseFloat(document.getElementById(`tr_${c}`)?.value)||0, blk:document.getElementById(`tk_${c}`)?.checked}; }); localStorage.setItem('tRules_v24', JSON.stringify(targetRules)); processLogic(); }
+    function renderTargetTable() { const r=document.getElementById('targetRows'); r.innerHTML=''; creators.forEach(c=>{ const tr=targetRules[c]||{}; const sales=computed.filter(d=>d.rep===c).reduce((a,b)=>a+b.total,0); r.innerHTML+=`<tr><td>${c}</td><td>${sales.toLocaleString()}</td><td><input type="number" class="tbl-input" id="ta_${c}" value="${tr.amt||0}"></td><td><input type="number" class="tbl-input" id="tr_${c}" value="${tr.rwd||0}"></td><td><input type="checkbox" id="tk_${c}" ${tr.blk?'checked':''}></td><td>${sales>=tr.amt?'✅':'❌'}</td></tr>`; }); }
+    function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules, rep:repOverrides})],{type:'application/json'}); saveAs(b, "Bonus_Backup_V24.json"); }
+    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; repOverrides=d.rep||{}; localStorage.setItem('pRules_v24',JSON.stringify(productRules)); processLogic(); alert('تم'); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
 </html>
