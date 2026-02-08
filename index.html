@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات V28 (منطق السعر العكسي)</title>
+    <title>نظام العمولات الموحد V29 (الأسماء العربية)</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -65,7 +65,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية</th><th>سعر الوحدة (شامل)</th><th>التصنيف</th><th>النسبة</th><th>البونص</th><th>تاريخ السداد</th>
+                        <th>المرجع</th><th>المندوب</th><th>المنتج (الموحد)</th><th>الكمية</th><th>سعر الوحدة (شامل)</th><th>التصنيف</th><th>النسبة</th><th>البونص</th><th>تاريخ السداد</th>
                     </tr>
                 </thead>
                 <tbody id="mainRows"></tbody>
@@ -105,10 +105,10 @@
     let creditNotesMap = {}; 
     let computed = [], suspended = [];
 
-    let productRules = JSON.parse(localStorage.getItem('pRules_v28') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('tRules_v28') || "{}");
-    let repOverrides = JSON.parse(localStorage.getItem('repOverrides_v28') || "{}");
-    let manualDeferred = JSON.parse(localStorage.getItem('manualDef_v28') || "[]");
+    let productRules = JSON.parse(localStorage.getItem('pRules_v29') || "{}");
+    let targetRules = JSON.parse(localStorage.getItem('tRules_v29') || "{}");
+    let repOverrides = JSON.parse(localStorage.getItem('repOverrides_v29') || "{}");
+    let manualDeferred = JSON.parse(localStorage.getItem('manualDef_v29') || "[]");
 
     const AUTO_RULES = [
         { keys: ["ورق الكاشير", "80*70", "8070"], pp: 69, bp: 68 },
@@ -178,7 +178,7 @@
             const isManualDef = manualDeferred.includes(inv.id);
             const currentRep = repOverrides[inv.id] || inv.created_by;
 
-            // --- منطق الدفعات ---
+            // الدفعات
             let isEligible = false;
             let displayDate = inv.issue_date;
             let paidRatio = 1; 
@@ -229,23 +229,25 @@
                 const pid = item.product_id;
                 const rule = productRules[pid] || {};
 
+                // --- توحيد الاسم (The Fix for Names) ---
+                // نستخدم الاسم من الخريطة الرئيسية (العربي) بدلاً من الفاتورة
+                // إذا لم يوجد في الخريطة، نستخدم اسم الفاتورة كاحتياط
+                const unifiedName = productsMap[pid] ? productsMap[pid].name : item.product_name;
+
                 const rawPrice = parseFloat(item.unit_price);
                 const taxMultiplier = 1 + (parseFloat(item.tax_percent || 0) / 100);
                 const priceWithTax = rawPrice * taxMultiplier;
 
-                // --- إصلاح معادلة السعر ---
+                // إصلاح الوحدات
                 let currentUnitFactor = unitsMap[item.unit_type] || 1; 
                 let multiplier = 1;
                 if (currentUnitFactor > 1) {
                     multiplier = 1; 
                 } else {
                     const manualFactor = parseFloat(rule.factor) || 0;
-                    if (manualFactor > 1) {
-                        multiplier = manualFactor;
-                    }
+                    if (manualFactor > 1) multiplier = manualFactor;
                 }
                 const cartonPrice = priceWithTax * multiplier;
-                // ------------------------------------
 
                 const originalQty = parseFloat(item.quantity);
                 const netQty = Math.max(0, originalQty - (specificReturns[pid] || 0));
@@ -259,13 +261,12 @@
                 const pPrice = parseFloat(rule.premiumPrice || 0);
                 const bPrice = parseFloat(rule.basePrice || 0);
 
-                // --- منطق الشروط الجديد V28 ---
-                // 1. التميز: أكبر من أو يساوي (كما هو)
+                // --- منطق الشروط العكسي V29 ---
+                // 1. التميز: أكبر من أو يساوي
                 if (pPrice > 0 && cartonPrice >= pPrice) { 
                     pct = rule.premiumPct || 2; tier = "تميز"; badge = "badge-p"; 
                 } 
-                // 2. الأساسي: أصغر من أو يساوي (تعديل الطلب)
-                // "57 وأقل يأخذ 1%"
+                // 2. الأساسي: أصغر من أو يساوي
                 else if (bPrice > 0 && cartonPrice <= bPrice) { 
                     pct = rule.basePct || 1; tier = "أساسي"; badge = "badge-b"; 
                 }
@@ -278,7 +279,8 @@
                 
                 const record = { 
                     invId: inv.id, ref: inv.reference, rep: currentRep, 
-                    prod: item.product_name, date: displayDate, 
+                    prod: unifiedName, // استخدام الاسم الموحد
+                    date: displayDate, 
                     sellCarton: cartonPrice, tier, badge, pct, bonus, total: totalRowSales,
                     qty: bonusQty.toFixed(1)
                 };
@@ -288,6 +290,7 @@
                 } else if (isPending) {
                     record.qty = netQty.toFixed(1);
                     record.bonus = (priceWithTax * netQty * (pct/100)); 
+                    record.prod = unifiedName; // تحديث الاسم في المعلق أيضاً
                     suspended.push(record);
                 }
             });
@@ -311,12 +314,12 @@
     }
     function renderSuspended() { const r=document.getElementById('suspRows'); r.innerHTML=''; suspended.filter(d=>document.getElementById('creatorFilter').value==='all'||d.rep===document.getElementById('creatorFilter').value).forEach(x=>{ r.innerHTML+=`<tr><td>${x.ref}</td><td>${x.rep}</td><td>${x.prod}</td><td>${x.date}</td><td>${x.bonus.toFixed(2)}</td></tr>`; }); }
     function renderProductRules() { const r=document.getElementById('prodRows'); r.innerHTML=''; Object.keys(productsMap).forEach(k=>{ const rule=productRules[k]||{}; const isAuto=AUTO_RULES.some(a=>a.keys.some(z=>productsMap[k].name.includes(z))); r.innerHTML+=`<tr><td>${isAuto?'<span class="auto-tag">T</span>':''}${productsMap[k].name}</td><td><input type="number" class="tbl-input" id="f_${k}" value="${rule.factor||0}"></td><td><input type="number" class="tbl-input" id="pp_${k}" value="${rule.premiumPrice||0}"></td><td><input type="number" class="tbl-input" id="ppct_${k}" value="${rule.premiumPct||2}"></td><td><input type="number" class="tbl-input" id="bp_${k}" value="${rule.basePrice||0}"></td><td><input type="number" class="tbl-input" id="bpct_${k}" value="${rule.basePct||1}"></td></tr>`; }); }
-    function saveProductRules() { Object.keys(productsMap).forEach(k=>{ productRules[k]={factor:parseFloat(document.getElementById(`f_${k}`).value)||0, premiumPrice:parseFloat(document.getElementById(`pp_${k}`).value)||0, premiumPct:parseFloat(document.getElementById(`ppct_${k}`).value)||0, basePrice:parseFloat(document.getElementById(`bp_${k}`).value)||0, basePct:parseFloat(document.getElementById(`bpct_${k}`).value)||0}; }); localStorage.setItem('pRules_v28', JSON.stringify(productRules)); applySmartRules(); processLogic(); }
-    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]&&(productRules[k].premiumPrice>0))return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.bpct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v28', JSON.stringify(productRules)); }
-    function saveTargetRules() { creators.forEach(c=>{ targetRules[c]={amt:parseFloat(document.getElementById(`ta_${c}`)?.value)||0, rwd:parseFloat(document.getElementById(`tr_${c}`)?.value)||0, blk:document.getElementById(`tk_${c}`)?.checked}; }); localStorage.setItem('tRules_v28', JSON.stringify(targetRules)); processLogic(); }
+    function saveProductRules() { Object.keys(productsMap).forEach(k=>{ productRules[k]={factor:parseFloat(document.getElementById(`f_${k}`).value)||0, premiumPrice:parseFloat(document.getElementById(`pp_${k}`).value)||0, premiumPct:parseFloat(document.getElementById(`ppct_${k}`).value)||0, basePrice:parseFloat(document.getElementById(`bp_${k}`).value)||0, basePct:parseFloat(document.getElementById(`bpct_${k}`).value)||0}; }); localStorage.setItem('pRules_v29', JSON.stringify(productRules)); applySmartRules(); processLogic(); }
+    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]&&(productRules[k].premiumPrice>0))return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.bpct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v29', JSON.stringify(productRules)); }
+    function saveTargetRules() { creators.forEach(c=>{ targetRules[c]={amt:parseFloat(document.getElementById(`ta_${c}`)?.value)||0, rwd:parseFloat(document.getElementById(`tr_${c}`)?.value)||0, blk:document.getElementById(`tk_${c}`)?.checked}; }); localStorage.setItem('tRules_v29', JSON.stringify(targetRules)); processLogic(); }
     function renderTargetTable() { const r=document.getElementById('targetRows'); r.innerHTML=''; creators.forEach(c=>{ const tr=targetRules[c]||{}; const sales=computed.filter(d=>d.rep===c).reduce((a,b)=>a+b.total,0); r.innerHTML+=`<tr><td>${c}</td><td>${sales.toLocaleString()}</td><td><input type="number" class="tbl-input" id="ta_${c}" value="${tr.amt||0}"></td><td><input type="number" class="tbl-input" id="tr_${c}" value="${tr.rwd||0}"></td><td><input type="checkbox" id="tk_${c}" ${tr.blk?'checked':''}></td><td>${sales>=tr.amt?'✅':'❌'}</td></tr>`; }); }
-    function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules, rep:repOverrides})],{type:'application/json'}); saveAs(b, "Bonus_Backup_V28.json"); }
-    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; repOverrides=d.rep||{}; localStorage.setItem('pRules_v28',JSON.stringify(productRules)); processLogic(); alert('تم'); }; r.readAsText(e.target.files[0]); }
+    function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules, rep:repOverrides})],{type:'application/json'}); saveAs(b, "Bonus_Backup_V29.json"); }
+    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; repOverrides=d.rep||{}; localStorage.setItem('pRules_v29',JSON.stringify(productRules)); processLogic(); alert('تم'); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
 </html>
