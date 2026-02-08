@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات V26 (الترتيب العكسي)</title>
+    <title>نظام العمولات V28 (منطق السعر العكسي)</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -50,14 +50,14 @@
         <div style="display:flex; gap:15px; align-items:flex-end; margin-bottom:20px; background:#f8f9fa; padding:15px; border-radius:10px;">
             <div><label>شهر التحصيل</label><br><input type="month" id="targetMonth" style="padding:8px; border-radius:5px; border:1px solid #ccc;"></div>
             <div><label>المندوب</label><br><select id="creatorFilter" onchange="renderUI()" class="rep-select" style="width:200px;"></select></div>
-            <button class="btn btn-acc" onclick="fetchData()"><i class="fas fa-sync"></i> جلب وحساب (الأحدث أولاً)</button>
+            <button class="btn btn-acc" onclick="fetchData()"><i class="fas fa-sync"></i> جلب وحساب (الأحدث)</button>
             <button class="btn btn-g" onclick="exportExcel()"><i class="fas fa-file-excel"></i> تصدير</button>
         </div>
         
         <div id="debug-box" class="debug-info"></div>
 
         <div class="stats">
-            <div class="card"><h3>المحصل (المعتمد)</h3><div id="stat-sales" class="card-val">0</div></div>
+            <div class="card"><h3>المبيعات (المحصلة)</h3><div id="stat-sales" class="card-val">0</div></div>
             <div class="card" style="background:var(--acc)"><h3>البونص المستحق</h3><div id="stat-bonus" class="card-val">0</div></div>
             <div class="card" style="background:#e67e22"><h3>التارجت</h3><div id="stat-target" class="card-val">-</div></div>
         </div>
@@ -75,7 +75,7 @@
 
     <div id="tab-suspended" class="tab-content">
         <div class="card" style="max-width:300px; background:#7f8c8d; margin-bottom:20px;">
-            <h3>بونص متوقع (تحت التحصيل)</h3><div id="stat-susp-bonus" class="card-val">0</div>
+            <h3>بونص متوقع (غير محصل)</h3><div id="stat-susp-bonus" class="card-val">0</div>
         </div>
         <table><thead><tr><th>المرجع</th><th>المندوب</th><th>المنتج</th><th>تاريخ الفاتورة</th><th>البونص المتوقع</th></tr></thead><tbody id="suspRows"></tbody></table>
     </div>
@@ -85,7 +85,7 @@
             <h3><i class="fas fa-robot"></i> إعدادات الأسعار</h3>
             <div><button class="btn btn-acc" onclick="applySmartRules(true)">إعادة ضبط</button> <button class="btn btn-g" onclick="saveProductRules()">حفظ</button></div>
         </div>
-        <table><thead><tr><th>المنتج</th><th>معامل الكرتون</th><th>سعر التميز (>=)</th><th>نسبة %</th><th>السعر الأساسي (>=)</th><th>نسبة %</th></tr></thead><tbody id="prodRows"></tbody></table>
+        <table><thead><tr><th>المنتج</th><th>معامل الكرتون</th><th>سعر التميز (>=)</th><th>نسبة %</th><th>السعر الأساسي (<=)</th><th>نسبة %</th></tr></thead><tbody id="prodRows"></tbody></table>
     </div>
 
     <div id="tab-targets" class="tab-content">
@@ -105,10 +105,10 @@
     let creditNotesMap = {}; 
     let computed = [], suspended = [];
 
-    let productRules = JSON.parse(localStorage.getItem('pRules_v26') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('tRules_v26') || "{}");
-    let repOverrides = JSON.parse(localStorage.getItem('repOverrides_v26') || "{}");
-    let manualDeferred = JSON.parse(localStorage.getItem('manualDef_v26') || "[]");
+    let productRules = JSON.parse(localStorage.getItem('pRules_v28') || "{}");
+    let targetRules = JSON.parse(localStorage.getItem('tRules_v28') || "{}");
+    let repOverrides = JSON.parse(localStorage.getItem('repOverrides_v28') || "{}");
+    let manualDeferred = JSON.parse(localStorage.getItem('manualDef_v28') || "[]");
 
     const AUTO_RULES = [
         { keys: ["ورق الكاشير", "80*70", "8070"], pp: 69, bp: 68 },
@@ -133,9 +133,9 @@
         
         if(!month) return alert("حدد الشهر!");
         
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جلب الأحدث...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جلب...';
         dbg.style.display = 'block';
-        dbg.innerHTML = "جاري الاتصال بالسيرفر وجلب أحدث الفواتير (ترتيب عكسي)...";
+        dbg.innerHTML = "جاري الاتصال بالسيرفر...";
 
         try {
             const res = await fetch(`/api/get-data?month=${month}`);
@@ -154,13 +154,12 @@
             
             creators = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
             
-            // تقرير مصغر
             if(rawInvoices.length > 0) {
                 const first = rawInvoices[0].issue_date;
                 const last = rawInvoices[rawInvoices.length-1].issue_date;
-                dbg.innerHTML = `تم جلب <b>${rawInvoices.length}</b> فاتورة.<br>من تاريخ: <b>${last}</b> إلى تاريخ: <b>${first}</b>.<br>جاري المعالجة...`;
+                dbg.innerHTML = `تم جلب <b>${rawInvoices.length}</b> فاتورة.<br>النطاق: من <b>${last}</b> إلى <b>${first}</b>`;
             } else {
-                dbg.innerHTML = "تم الاتصال ولكن لم يتم العثور على فواتير! تأكد من وجود فواتير مدفوعة.";
+                dbg.innerHTML = "لم يتم العثور على فواتير.";
             }
 
             updateFilterDropdown();
@@ -179,12 +178,10 @@
             const isManualDef = manualDeferred.includes(inv.id);
             const currentRep = repOverrides[inv.id] || inv.created_by;
 
-            // --- محرك البحث عن الدفعات (V26) ---
+            // --- منطق الدفعات ---
             let isEligible = false;
             let displayDate = inv.issue_date;
             let paidRatio = 1; 
-
-            // 1. هل هناك دفعة في هذا الشهر؟
             let amountPaidInMonth = 0;
             let foundPayment = false;
             
@@ -204,7 +201,6 @@
                 const total = parseFloat(inv.total) || 1;
                 paidRatio = amountPaidInMonth / total;
             } else {
-                // 2. شبكة الأمان (Fallback): الفاتورة نفسها في هذا الشهر ومدفوعة
                 const iDate = new Date(inv.issue_date);
                 if (iDate.getMonth() + 1 === tMonth && iDate.getFullYear() === tYear) {
                     if (inv.status === 'Paid') {
@@ -237,9 +233,19 @@
                 const taxMultiplier = 1 + (parseFloat(item.tax_percent || 0) / 100);
                 const priceWithTax = rawPrice * taxMultiplier;
 
-                let unitFactor = unitsMap[item.unit_type] || 1; 
-                if (parseFloat(rule.factor) > 0) unitFactor = parseFloat(rule.factor);
-                const cartonPrice = priceWithTax * unitFactor;
+                // --- إصلاح معادلة السعر ---
+                let currentUnitFactor = unitsMap[item.unit_type] || 1; 
+                let multiplier = 1;
+                if (currentUnitFactor > 1) {
+                    multiplier = 1; 
+                } else {
+                    const manualFactor = parseFloat(rule.factor) || 0;
+                    if (manualFactor > 1) {
+                        multiplier = manualFactor;
+                    }
+                }
+                const cartonPrice = priceWithTax * multiplier;
+                // ------------------------------------
 
                 const originalQty = parseFloat(item.quantity);
                 const netQty = Math.max(0, originalQty - (specificReturns[pid] || 0));
@@ -253,9 +259,20 @@
                 const pPrice = parseFloat(rule.premiumPrice || 0);
                 const bPrice = parseFloat(rule.basePrice || 0);
 
-                if (pPrice > 0 && cartonPrice >= pPrice) { pct = rule.premiumPct || 2; tier = "تميز"; badge = "badge-p"; }
-                else if (bPrice > 0 && cartonPrice >= bPrice) { pct = rule.basePct || 1; tier = "أساسي"; badge = "badge-b"; }
-                else if (rule.premiumPct > 0 && pPrice <= 1) { pct = rule.premiumPct; tier = "تلقائي"; badge = "badge-p"; }
+                // --- منطق الشروط الجديد V28 ---
+                // 1. التميز: أكبر من أو يساوي (كما هو)
+                if (pPrice > 0 && cartonPrice >= pPrice) { 
+                    pct = rule.premiumPct || 2; tier = "تميز"; badge = "badge-p"; 
+                } 
+                // 2. الأساسي: أصغر من أو يساوي (تعديل الطلب)
+                // "57 وأقل يأخذ 1%"
+                else if (bPrice > 0 && cartonPrice <= bPrice) { 
+                    pct = rule.basePct || 1; tier = "أساسي"; badge = "badge-b"; 
+                }
+                // 3. حالة الأحبار (تلقائي)
+                else if (rule.premiumPct > 0 && pPrice <= 1) { 
+                    pct = rule.premiumPct; tier = "تلقائي"; badge = "badge-p"; 
+                }
 
                 const bonus = totalRowSales * (pct / 100);
                 
@@ -278,7 +295,6 @@
         renderUI();
     }
 
-    // دوال العرض والنسخ (كما هي)
     function updateFilterDropdown() { const s=document.getElementById('creatorFilter'); const v=s.value; s.innerHTML='<option value="all">الكل</option>'; creators.forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`); s.value=v; }
     function renderUI() {
         const rows = document.getElementById('mainRows'); rows.innerHTML = '';
@@ -295,12 +311,12 @@
     }
     function renderSuspended() { const r=document.getElementById('suspRows'); r.innerHTML=''; suspended.filter(d=>document.getElementById('creatorFilter').value==='all'||d.rep===document.getElementById('creatorFilter').value).forEach(x=>{ r.innerHTML+=`<tr><td>${x.ref}</td><td>${x.rep}</td><td>${x.prod}</td><td>${x.date}</td><td>${x.bonus.toFixed(2)}</td></tr>`; }); }
     function renderProductRules() { const r=document.getElementById('prodRows'); r.innerHTML=''; Object.keys(productsMap).forEach(k=>{ const rule=productRules[k]||{}; const isAuto=AUTO_RULES.some(a=>a.keys.some(z=>productsMap[k].name.includes(z))); r.innerHTML+=`<tr><td>${isAuto?'<span class="auto-tag">T</span>':''}${productsMap[k].name}</td><td><input type="number" class="tbl-input" id="f_${k}" value="${rule.factor||0}"></td><td><input type="number" class="tbl-input" id="pp_${k}" value="${rule.premiumPrice||0}"></td><td><input type="number" class="tbl-input" id="ppct_${k}" value="${rule.premiumPct||2}"></td><td><input type="number" class="tbl-input" id="bp_${k}" value="${rule.basePrice||0}"></td><td><input type="number" class="tbl-input" id="bpct_${k}" value="${rule.basePct||1}"></td></tr>`; }); }
-    function saveProductRules() { Object.keys(productsMap).forEach(k=>{ productRules[k]={factor:parseFloat(document.getElementById(`f_${k}`).value)||0, premiumPrice:parseFloat(document.getElementById(`pp_${k}`).value)||0, premiumPct:parseFloat(document.getElementById(`ppct_${k}`).value)||0, basePrice:parseFloat(document.getElementById(`bp_${k}`).value)||0, basePct:parseFloat(document.getElementById(`bpct_${k}`).value)||0}; }); localStorage.setItem('pRules_v26', JSON.stringify(productRules)); applySmartRules(); processLogic(); }
-    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]&&(productRules[k].premiumPrice>0))return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.bpct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v26', JSON.stringify(productRules)); }
-    function saveTargetRules() { creators.forEach(c=>{ targetRules[c]={amt:parseFloat(document.getElementById(`ta_${c}`)?.value)||0, rwd:parseFloat(document.getElementById(`tr_${c}`)?.value)||0, blk:document.getElementById(`tk_${c}`)?.checked}; }); localStorage.setItem('tRules_v26', JSON.stringify(targetRules)); processLogic(); }
+    function saveProductRules() { Object.keys(productsMap).forEach(k=>{ productRules[k]={factor:parseFloat(document.getElementById(`f_${k}`).value)||0, premiumPrice:parseFloat(document.getElementById(`pp_${k}`).value)||0, premiumPct:parseFloat(document.getElementById(`ppct_${k}`).value)||0, basePrice:parseFloat(document.getElementById(`bp_${k}`).value)||0, basePct:parseFloat(document.getElementById(`bpct_${k}`).value)||0}; }); localStorage.setItem('pRules_v28', JSON.stringify(productRules)); applySmartRules(); processLogic(); }
+    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]&&(productRules[k].premiumPrice>0))return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.bpct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v28', JSON.stringify(productRules)); }
+    function saveTargetRules() { creators.forEach(c=>{ targetRules[c]={amt:parseFloat(document.getElementById(`ta_${c}`)?.value)||0, rwd:parseFloat(document.getElementById(`tr_${c}`)?.value)||0, blk:document.getElementById(`tk_${c}`)?.checked}; }); localStorage.setItem('tRules_v28', JSON.stringify(targetRules)); processLogic(); }
     function renderTargetTable() { const r=document.getElementById('targetRows'); r.innerHTML=''; creators.forEach(c=>{ const tr=targetRules[c]||{}; const sales=computed.filter(d=>d.rep===c).reduce((a,b)=>a+b.total,0); r.innerHTML+=`<tr><td>${c}</td><td>${sales.toLocaleString()}</td><td><input type="number" class="tbl-input" id="ta_${c}" value="${tr.amt||0}"></td><td><input type="number" class="tbl-input" id="tr_${c}" value="${tr.rwd||0}"></td><td><input type="checkbox" id="tk_${c}" ${tr.blk?'checked':''}></td><td>${sales>=tr.amt?'✅':'❌'}</td></tr>`; }); }
-    function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules, rep:repOverrides})],{type:'application/json'}); saveAs(b, "Bonus_Backup_V26.json"); }
-    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; repOverrides=d.rep||{}; localStorage.setItem('pRules_v26',JSON.stringify(productRules)); processLogic(); alert('تم'); }; r.readAsText(e.target.files[0]); }
+    function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules, rep:repOverrides})],{type:'application/json'}); saveAs(b, "Bonus_Backup_V28.json"); }
+    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; repOverrides=d.rep||{}; localStorage.setItem('pRules_v28',JSON.stringify(productRules)); processLogic(); alert('تم'); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
 </html>
