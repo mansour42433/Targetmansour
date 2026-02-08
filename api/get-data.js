@@ -1,32 +1,20 @@
 export default async function handler(req, res) {
     const API_KEY = process.env.QOYOD_API_KEY;
-    const targetMonth = req.query.month;
+    // لم نعد نستخدم الشهر هنا للفلترة، سنجلب الكل ونفلتر في الواجهة لضمان ظهور البيانات
+    // const targetMonth = req.query.month; 
 
     if (!API_KEY) return res.status(500).json({ error: "API Key missing" });
 
     const headers = { "API-KEY": API_KEY, "Content-Type": "application/json" };
 
     try {
-        let dateParams = "";
-        if (targetMonth) {
-            const [year, month] = targetMonth.split('-').map(Number);
-            // العودة 6 أشهر للوراء للبحث عن فواتير قديمة سُددت حديثاً
-            const startDay = new Date(year, month - 6, 1);
-            const startDate = startDay.toISOString().split('T')[0];
-            // نهاية الشهر الحالي
-            const endDay = new Date(year, month, 0);
-            const endDate = endDay.toISOString().split('T')[0];
-            
-            // نجلب الفواتير في هذا النطاق العريض
-            dateParams = `&q[issue_date_gteq]=${startDate}&q[issue_date_lteq]=${endDate}`;
-        }
-
-        // استخدام الروابط الرسمية حسب ملف code api.txt
+        // قمنا بإزالة فلتر التاريخ من الرابط لضمان جلب الفواتير أولاً
+        // نجلب آخر 3000 فاتورة (رقم كبير لضمان تغطية السنة)
         const urls = [
-            `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Partially Paid&q[status_in][]=Approved${dateParams}&limit=2500`,
-            `https://api.qoyod.com/2.0/products?limit=2500`,
+            `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Partially Paid&q[status_in][]=Approved&limit=3000`,
+            `https://api.qoyod.com/2.0/products?limit=3000`,
             `https://api.qoyod.com/2.0/product_units?limit=1000`,
-            `https://api.qoyod.com/2.0/credit_notes?${dateParams}&limit=1000`
+            `https://api.qoyod.com/2.0/credit_notes?limit=1000` 
         ];
 
         const results = await Promise.allSettled(urls.map(url => fetch(url, { headers })));
