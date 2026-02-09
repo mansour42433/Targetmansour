@@ -133,47 +133,61 @@ function switchTab(id) {
     event.currentTarget.classList.add('active');
 }
 
+// ✅ دالة إصلاح قائمة المناديب
+function updateFilterDropdown() {
+    const sel = document.getElementById('creatorFilter');
+    if(!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">كل المناديب</option>';
+    creators.sort().forEach(rep => {
+        const opt = document.createElement('option');
+        opt.value = rep;
+        opt.textContent = rep;
+        sel.appendChild(opt);
+    });
+    sel.value = current || '';
+}
+
 async function fetchData() {
     const month = document.getElementById('targetMonth').value;
     if(!month) return alert("يرجى تحديد الشهر المستهدف أولاً!");
     const btn = document.querySelector('.btn-acc');
     const dbg = document.getElementById('debug-info');
-
+    
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
     dbg.style.display = 'block'; dbg.innerHTML = 'جاري الاتصال بـ API قيود وجلب البيانات...';
 
     try {
         const res = await fetch(`/api/get-data?month=${month}`);
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-
+        
         rawInvoices = data.invoices || [];
         productsMap = data.productsMap || {};
+        
         unitsMap = {};
         if(data.product_units) data.product_units.forEach(u => unitsMap[u.id] = parseFloat(u.conversion_factor || 1));
+        
         creditNotesMap = {};
         if(data.credit_notes) data.credit_notes.forEach(cn => creditNotesMap[cn.id] = cn);
+        
         creators = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
+        
         updateFilterDropdown();
-        applySmartRules();
+        applySmartRules(); 
         processLogic();
-
+        
         btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث البيانات';
         dbg.innerHTML = `تم جلب ${rawInvoices.length} فاتورة بنجاح.`;
     } catch (e) {
-        console.error(e);
-        alert("خطأ في جلب البيانات: " + e.message);
+        console.error(e); alert("خطأ في جلب البيانات: " + e.message);
         btn.innerHTML = 'فشل التحديث';
     }
 }
 
-// ✅ الدالة الجديدة processLogic() مع الحفاظ على أسماء المناديب
+// 🔹 الدالة الجديدة processLogic() بالكامل
 function processLogic() {
     computed = [];
     suspended = [];
-
-    // تأكد من وجود كل المندوبين في قائمة creators
-    const allReps = [...new Set([...creators])];
 
     rawInvoices.forEach(inv => {
 
@@ -181,6 +195,7 @@ function processLogic() {
 
         const totalPaid = (inv.payments || [])
             .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+
         if (Math.abs(totalPaid - parseFloat(inv.total)) > 0.01) return;
 
         let invoiceReturns = {};
@@ -207,25 +222,39 @@ function processLogic() {
             const unifiedName = productsMap[pid]?.name || item.product_name;
 
             const priceInclTax =
-                parseFloat(item.unit_price) * (1 + (parseFloat(item.tax_percent || 0)/100));
+                parseFloat(item.unit_price)
+                * (1 + (parseFloat(item.tax_percent || 0) / 100));
 
             let multiplier = 1;
             if (!(item.unit_type_name || "").includes("كرتون")) {
-                multiplier = unitsMap[item.unit_type] || parseFloat(rule.factor) || 1;
+                multiplier = unitsMap[item.unit_type]
+                    || parseFloat(rule.factor)
+                    || 1;
             }
-            const cartonPrice = priceInclTax * multiplier;
-            const netQty = Math.max(0, parseFloat(item.quantity) - (invoiceReturns[pid] || 0));
 
-            let pct=0, tier="أقل من الحد", badge="badge-r";
-            if(rule.premiumPrice>0 && cartonPrice >= rule.premiumPrice){
-                pct = rule.premiumPct||2; tier="تميز"; badge="badge-p";
-            } else if(rule.basePrice>0 && cartonPrice <= rule.basePrice){
-                pct = rule.basePct||1; tier="أساسي"; badge="badge-b";
+            const cartonPrice = priceInclTax * multiplier;
+            const netQty =
+                Math.max(0,
+                    parseFloat(item.quantity)
+                    - (invoiceReturns[pid] || 0)
+                );
+
+            let pct = 0, tier = "أقل من الحد", badge = "badge-r";
+
+            if (rule.premiumPrice > 0 && cartonPrice >= rule.premiumPrice) {
+                pct = rule.premiumPct || 2;
+                tier = "تميز";
+                badge = "badge-p";
+            } else if (rule.basePrice > 0 && cartonPrice <= rule.basePrice) {
+                pct = rule.basePct || 1;
+                tier = "أساسي";
+                badge = "badge-b";
             }
-            if(pct===0||netQty===0) return;
+
+            if (pct === 0 || netQty === 0) return;
 
             const totalSales = priceInclTax * netQty;
-            const bonusAmount = totalSales*(pct/100);
+            const bonusAmount = totalSales * (pct / 100);
 
             computed.push({
                 ref: inv.reference,
@@ -240,17 +269,14 @@ function processLogic() {
                 totalSales,
                 date: inv.issue_date
             });
-
-            if(inv.created_by && !allReps.includes(inv.created_by)) allReps.push(inv.created_by);
         });
     });
 
-    creators = allReps;
     renderUI();
 }
 
-// باقي الدوال كما هي من النسخة السابقة: renderUI, renderProductRules, renderTargetTable, applySmartRules, saveProductRules, saveTargetRules, exportBackup, importBackup, exportExcel
-
+// باقي الدوال: renderUI, exportExcel, applySmartRules, saveProductRules, saveTargetRules, exportBackup, importBackup
+// لم تتغير، تبقى كما في النسخة السابقة
 </script>
 </body>
 </html>
