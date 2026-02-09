@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات المتكامل V35</title>
+    <title>نظام العمولات المتكامل V36 - مربعات إحصائية محسّنة</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -56,6 +56,8 @@
 
         <div class="stats">
             <div class="card"><h3>المبيعات المحصلة</h3><div id="stat-sales" class="card-val">0</div></div>
+            <div class="card" style="background:#f39c12"><h3>مبيعات 1% (أساسي)</h3><div id="stat-sales-1pct" class="card-val">0</div></div>
+            <div class="card" style="background:#27ae60"><h3>مبيعات 2% (تميز)</h3><div id="stat-sales-2pct" class="card-val">0</div></div>
             <div class="card" style="background:var(--acc)"><h3>إجمالي البونص</h3><div id="stat-bonus" class="card-val">0</div></div>
             <div class="card" style="background:#e67e22"><h3>المكافأة (التارجت)</h3><div id="stat-target-reward" class="card-val">0</div></div>
         </div>
@@ -322,12 +324,20 @@
         const mainTbody = document.getElementById('mainRows');
         mainTbody.innerHTML = '';
         
-        let totalSales = 0, totalBonus = 0;
+        let totalSales = 0, totalBonus = 0, sales1pct = 0, sales2pct = 0;
         computed.filter(d => filter === 'all' || d.rep === filter).forEach(r => {
-            totalSales += r.totalSales; totalBonus += r.bonus;
+            totalSales += r.totalSales; 
+            totalBonus += r.bonus;
+            
+            // تصنيف المبيعات حسب النسبة
+            if(r.pct === 1) sales1pct += r.totalSales;
+            else if(r.pct === 2) sales2pct += r.totalSales;
+            
             mainTbody.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td style="font-size:0.9em">${r.prod}</td><td>${r.qty}</td><td>${r.sellCarton.toFixed(2)}</td><td><span class="badge ${r.badge}">${r.tier}</span></td><td>${r.pct}%</td><td style="font-weight:bold">${r.bonus.toFixed(2)}</td><td>${r.date}</td></tr>`;
         });
         document.getElementById('stat-sales').innerText = totalSales.toLocaleString();
+        document.getElementById('stat-sales-1pct').innerText = sales1pct.toLocaleString();
+        document.getElementById('stat-sales-2pct').innerText = sales2pct.toLocaleString();
         document.getElementById('stat-bonus').innerText = totalBonus.toLocaleString();
 
         const suspTbody = document.getElementById('suspRows');
