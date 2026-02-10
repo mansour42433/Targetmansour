@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات الشامل V46</title>
+    <title>نظام العمولات V47</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -26,7 +26,6 @@
         .ok{background:#d4edda; color:#155724;} .mid{background:#fff3cd; color:#856404;} .no{background:#f8d7da; color:#721c24;}
         .btn{padding:10px 18px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-family:'Cairo'; margin-left:5px;}
         .btn-acc{background:var(--acc); color:#fff;} .btn-g{background:var(--g); color:#fff;}
-        .tbl-input{width:70px; text-align:center; padding:5px; border:1px solid #ccc; border-radius:4px;}
     </style>
 </head>
 <body>
@@ -43,15 +42,15 @@
     <div style="padding:20px; background:#f8f9fa; display:flex; gap:15px; align-items:flex-end;">
         <div><label>شهر الحساب</label><br><input type="month" id="targetMonth" style="padding:8px; border-radius:5px; border:1px solid #ccc;"></div>
         <div><label>المندوب</label><br><select id="creatorFilter" onchange="renderUI()" style="padding:8px; width:200px; border-radius:5px;"></select></div>
-        <button class="btn btn-acc" onclick="fetchData()">جلب البيانات (آخر 4 شهور)</button>
-        <button class="btn btn-g" onclick="exportExcel()">تصدير إكسيل ملون</button>
+        <button class="btn btn-acc" onclick="fetchData()">جلب البيانات (أحدث 2500)</button>
+        <button class="btn btn-g" onclick="exportExcel()">تصدير إكسيل</button>
     </div>
 
     <div id="tab-bonus" class="tab-content active">
         <div class="stats">
             <div class="card"><h3>إجمالي المبيعات المحسوبة</h3><div id="st_sales" class="card-val">0</div></div>
             <div class="card" style="background:var(--acc)"><h3>إجمالي البونص</h3><div id="st_bonus" class="card-val">0</div></div>
-            <div class="card" style="background:#e67e22"><h3>المكافآت المقطوعة (تارجت)</h3><div id="st_target_reward" class="card-val">0</div></div>
+            <div class="card" style="background:#e67e22"><h3>مكافآت التارجت</h3><div id="st_target_reward" class="card-val">0</div></div>
         </div>
         <table>
             <thead><tr><th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية</th><th>سعر الكرتون</th><th>النوع</th><th>%</th><th>البونص</th><th>تاريخ السداد</th></tr></thead>
@@ -60,13 +59,13 @@
     </div>
 
     <div id="tab-excluded" class="tab-content">
-        <h3>فواتير تم استبعادها من الحساب</h3>
+        <h3>الفواتير المستبعدة</h3>
         <table><thead><tr><th>المرجع</th><th>المندوب</th><th>الحالة</th><th>تاريخ الفاتورة</th><th>سبب الاستبعاد</th></tr></thead><tbody id="excludedRows"></tbody></table>
     </div>
 
     <div id="tab-products" class="tab-content">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-            <h3>إعدادات الأسعار والوحدات</h3>
+            <h3>إعدادات الأسعار</h3>
             <div><button class="btn btn-acc" onclick="applySmartRules(true)">ضبط تلقائي</button> <button class="btn btn-g" onclick="saveProductRules()">حفظ التعديلات</button></div>
         </div>
         <table><thead><tr><th>المنتج</th><th>معامل الكرتون</th><th>سعر التميز (>=)</th><th>%</th><th>سعر الأساسي (<=)</th><th>%</th></tr></thead><tbody id="productRows"></tbody></table>
@@ -74,7 +73,7 @@
 
     <div id="tab-targets" class="tab-content">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-            <h3>أهداف المبيعات (Targets)</h3>
+            <h3>أهداف المبيعات</h3>
             <button class="btn btn-g" onclick="saveTargetRules()">حفظ التارجت</button>
         </div>
         <table><thead><tr><th>المندوب</th><th>المبيعات المحققة</th><th>الهدف المطلوب</th><th>مكافأة التحقيق</th><th>الحالة</th></tr></thead><tbody id="targetRows"></tbody></table>
@@ -82,8 +81,7 @@
 
     <div id="tab-settings" class="tab-content">
         <h3>النسخ الاحتياطي</h3>
-        <p>يمكنك حفظ إعدادات الأسعار والتارجت لاستخدامها لاحقاً.</p>
-        <button class="btn btn-acc" onclick="exportBackup()">تصدير الإعدادات (JSON)</button>
+        <button class="btn btn-acc" onclick="exportBackup()">تصدير الإعدادات</button>
         <input type="file" onchange="importBackup(event)" style="margin-right:10px;">
     </div>
 </div>
@@ -92,11 +90,9 @@
     let rawInvoices=[], productsMap={}, unitsMapFactor={}, creditNotesMap={}, creators=[];
     let computed=[], excludedInvoices=[];
     
-    // استعادة الإعدادات المحفوظة
-    let productRules = JSON.parse(localStorage.getItem('pRules_v46') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('tRules_v46') || "{}");
+    let productRules = JSON.parse(localStorage.getItem('pRules_v47') || "{}");
+    let targetRules = JSON.parse(localStorage.getItem('tRules_v47') || "{}");
 
-    // قواعد تلقائية مساعدة
     const AUTO_RULES = [
         { keys: ["ورق كاشير", "80*70"], pp: 69, bp: 68 },
         { keys: ["A4"], pp: 58, bp: 57 },
@@ -123,6 +119,7 @@
             const res = await fetch(`/api/get-data?month=${m}`);
             const data = await res.json();
 
+            // إذا كان هناك خطأ قادم من السيرفر، نعرضه بوضوح
             if (data.error) throw new Error(data.error);
 
             rawInvoices = data.invoices || [];
@@ -137,15 +134,15 @@
             creators = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
             updateFilterDropdown();
             
-            applySmartRules(); // تطبيق القواعد التلقائية عند الجلب
+            applySmartRules(); 
             processLogic();
             
             btn.innerHTML = 'تم الجلب';
-            alert(`تم جلب ${rawInvoices.length} فاتورة.`);
+            alert(`تم جلب ${rawInvoices.length} فاتورة بنجاح.`);
 
         } catch(e) {
             console.error(e); 
-            alert("خطأ: " + e.message); 
+            alert("فشل الجلب:\n" + e.message); 
             btn.innerHTML = 'فشل';
         } finally {
             btn.disabled = false;
@@ -153,7 +150,6 @@
         }
     }
 
-    // --- المنطق الحسابي (الصارم) ---
     function processLogic() {
         computed = [];
         excludedInvoices = [];
@@ -188,13 +184,12 @@
             const refDate = isDeferred ? lastPaymentDate : inv.issue_date;
             const d = new Date(refDate);
 
-            // تحقق الشهر
+            // التحقق من الشهر المختار
             if (d.getFullYear() !== tYear || (d.getMonth() + 1) !== tMonth) {
-                excludedInvoices.push({ ...baseInfo, reason: `تاريخ السداد (${refDate}) خارج الشهر` });
+                // الفواتير التي خارج الشهر لا تعتبر خطأ، لكن لا تحسب
                 return;
             }
 
-            // المرتجعات
             let returns = {};
             (inv.allocations || []).forEach(a => {
                 if (a.source_type === "CreditNote") {
@@ -206,13 +201,12 @@
             let hasValidItems = false;
             inv.line_items.forEach(item => {
                 const pid = item.product_id;
-                const rule = productRules[pid] || {}; // استخدام القواعد المحفوظة
+                const rule = productRules[pid] || {}; 
                 const priceInclTax = parseFloat(item.unit_price || 0) * (1 + (parseFloat(item.tax_percent || 0) / 100));
 
                 let mult = 1;
                 const isCarton = (item.unit_type_name || "").includes("كرتون");
                 
-                // الأولوية: 1. إعدادات المستخدم 2. وحدات قيود 3. الافتراضي 1
                 if (!isCarton) {
                     if (parseFloat(rule.factor) > 0) mult = parseFloat(rule.factor);
                     else mult = unitsMapFactor[item.unit_type] || 1;
@@ -223,11 +217,9 @@
 
                 if (netQty <= 0) return;
 
-                // منطق البونص المرن
                 let pct = 0; let tier = "أقل";
-                
-                const pPrice = parseFloat(rule.premiumPrice) || 70; // افتراضي 70
-                const bPrice = parseFloat(rule.basePrice) || 0; // افتراضي 0 (يعني أي شيء فوق الصفر)
+                const pPrice = parseFloat(rule.premiumPrice) || 70;
+                const bPrice = parseFloat(rule.basePrice) || 0;
 
                 if (cartonPrice >= pPrice) { pct = rule.premiumPct || 2; tier = "تميز"; }
                 else if (cartonPrice > bPrice) { pct = rule.basePct || 1; tier = "أساسي"; }
@@ -247,7 +239,6 @@
         renderUI();
     }
 
-    // --- العرض ---
     function renderUI() {
         const rows = document.getElementById('bonusRows'); rows.innerHTML = '';
         const f = document.getElementById('creatorFilter').value;
@@ -269,7 +260,6 @@
         renderProductRules(); renderTargetTable();
     }
 
-    // --- المنتجات والتارجت ---
     function renderProductRules() { 
         const r = document.getElementById('productRows'); r.innerHTML = ''; 
         Object.keys(productsMap).forEach(k => { 
@@ -291,32 +281,22 @@
         document.getElementById('st_target_reward').innerText = tR.toLocaleString();
     }
 
-    // --- الحفظ والنسخ ---
-    function saveProductRules() { Object.keys(productsMap).forEach(k => { productRules[k] = { factor: parseFloat(document.getElementById(`f_${k}`).value), premiumPrice: parseFloat(document.getElementById(`pp_${k}`).value), premiumPct: parseFloat(document.getElementById(`ppct_${k}`).value), basePrice: parseFloat(document.getElementById(`bp_${k}`).value), basePct: parseFloat(document.getElementById(`bpct_${k}`).value) }; }); localStorage.setItem('pRules_v46', JSON.stringify(productRules)); processLogic(); alert('تم الحفظ'); }
-    function saveTargetRules() { creators.forEach(c => { targetRules[c] = { amt: parseFloat(document.getElementById(`ta_${c}`).value), rwd: parseFloat(document.getElementById(`tr_${c}`).value) }; }); localStorage.setItem('tRules_v46', JSON.stringify(targetRules)); processLogic(); alert('تم الحفظ'); }
-    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]?.premiumPrice>0)return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.basePct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v46', JSON.stringify(productRules)); renderProductRules(); }
+    function saveProductRules() { Object.keys(productsMap).forEach(k => { productRules[k] = { factor: parseFloat(document.getElementById(`f_${k}`).value), premiumPrice: parseFloat(document.getElementById(`pp_${k}`).value), premiumPct: parseFloat(document.getElementById(`ppct_${k}`).value), basePrice: parseFloat(document.getElementById(`bp_${k}`).value), basePct: parseFloat(document.getElementById(`bpct_${k}`).value) }; }); localStorage.setItem('pRules_v47', JSON.stringify(productRules)); processLogic(); alert('تم الحفظ'); }
+    function saveTargetRules() { creators.forEach(c => { targetRules[c] = { amt: parseFloat(document.getElementById(`ta_${c}`).value), rwd: parseFloat(document.getElementById(`tr_${c}`).value) }; }); localStorage.setItem('tRules_v47', JSON.stringify(targetRules)); processLogic(); alert('تم الحفظ'); }
+    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]?.premiumPrice>0)return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.basePct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v47', JSON.stringify(productRules)); renderProductRules(); }
     
     function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules})],{type:'application/json'}); saveAs(b, "Backup_Config.json"); }
-    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; localStorage.setItem('pRules_v46',JSON.stringify(productRules)); localStorage.setItem('tRules_v46',JSON.stringify(targetRules)); processLogic(); alert('تم الاستيراد'); }; r.readAsText(e.target.files[0]); }
+    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; localStorage.setItem('pRules_v47',JSON.stringify(productRules)); localStorage.setItem('tRules_v47',JSON.stringify(targetRules)); processLogic(); alert('تم الاستيراد'); }; r.readAsText(e.target.files[0]); }
 
-    // --- إكسيل ملون ---
     async function exportExcel() {
         if (!computed.length) return alert("لا توجد بيانات");
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('تقرير البونص');
-        
         sheet.columns = [
-            { header: 'المندوب', key: 'rep', width: 20 },
-            { header: 'المرجع', key: 'ref', width: 15 },
-            { header: 'المنتج', key: 'prod', width: 35 },
-            { header: 'الكمية', key: 'qty', width: 10 },
-            { header: 'سعر الكرتون', key: 'price', width: 15 },
-            { header: 'الفئة', key: 'tier', width: 10 },
-            { header: 'البونص', key: 'bonus', width: 15 },
-            { header: 'التاريخ', key: 'date', width: 15 }
+            { header: 'المندوب', key: 'rep', width: 20 }, { header: 'المرجع', key: 'ref', width: 15 }, { header: 'المنتج', key: 'prod', width: 35 },
+            { header: 'الكمية', key: 'qty', width: 10 }, { header: 'سعر الكرتون', key: 'price', width: 15 }, { header: 'الفئة', key: 'tier', width: 10 },
+            { header: 'البونص', key: 'bonus', width: 15 }, { header: 'التاريخ', key: 'date', width: 15 }
         ];
-
-        // تلوين الهيدر
         sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
         sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
 
@@ -324,22 +304,11 @@
         
         Object.keys(groups).forEach(rep => {
             let t = 0;
-            groups[rep].forEach(d => {
-                t += d.bonus;
-                sheet.addRow({
-                    rep: d.rep, ref: d.ref, prod: d.prod, qty: d.qty,
-                    price: d.cartonPrice.toFixed(2), tier: d.tier,
-                    bonus: d.bonus.toFixed(2), date: d.date
-                });
-            });
-            // سطر الإجمالي الملون
+            groups[rep].forEach(d => { t += d.bonus; sheet.addRow({ rep: d.rep, ref: d.ref, prod: d.prod, qty: d.qty, price: d.cartonPrice.toFixed(2), tier: d.tier, bonus: d.bonus.toFixed(2), date: d.date }); });
             const r = sheet.addRow({ prod: `إجمالي المندوب: ${rep}`, bonus: t.toFixed(2) });
-            r.font = { bold: true };
-            r.getCell('prod').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } };
-            r.getCell('bonus').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } }; // أخضر فاتح
+            r.font = { bold: true }; r.getCell('prod').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } }; r.getCell('bonus').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
             sheet.addRow([]);
         });
-
         const buffer = await workbook.xlsx.writeBuffer();
         saveAs(new Blob([buffer]), 'Bonus_Full_Report.xlsx');
     }
