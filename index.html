@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات V47</title>
+    <title>نظام العمولات V48 (تحكم بالكمية)</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -32,17 +32,29 @@
 
 <div class="box">
     <div class="tabs-header">
-        <button class="tab-btn active" onclick="switchTab('bonus')"><i class="fas fa-coins"></i> البونص المستحق</button>
+        <button class="tab-btn active" onclick="switchTab('bonus')"><i class="fas fa-coins"></i> البونص</button>
         <button class="tab-btn" onclick="switchTab('excluded')"><i class="fas fa-ban"></i> المستبعدة</button>
         <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-box"></i> المنتجات</button>
         <button class="tab-btn" onclick="switchTab('targets')"><i class="fas fa-bullseye"></i> التارجت</button>
         <button class="tab-btn" onclick="switchTab('settings')"><i class="fas fa-cog"></i> الإعدادات</button>
     </div>
 
-    <div style="padding:20px; background:#f8f9fa; display:flex; gap:15px; align-items:flex-end;">
+    <div style="padding:20px; background:#f8f9fa; display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
         <div><label>شهر الحساب</label><br><input type="month" id="targetMonth" style="padding:8px; border-radius:5px; border:1px solid #ccc;"></div>
+        
+        <div>
+            <label>عمق البحث (عدد الفواتير)</label><br>
+            <select id="limitSelect" style="padding:8px; width:150px; border-radius:5px; border:1px solid #ccc;">
+                <option value="500" selected>500 (سريع جداً)</option>
+                <option value="800">800 (متوسط)</option>
+                <option value="1200">1200 (بطيء)</option>
+                <option value="1500">1500 (خطر Timeout)</option>
+                <option value="2500">2500 (تجربة فقط)</option>
+            </select>
+        </div>
+
         <div><label>المندوب</label><br><select id="creatorFilter" onchange="renderUI()" style="padding:8px; width:200px; border-radius:5px;"></select></div>
-        <button class="btn btn-acc" onclick="fetchData()">جلب البيانات (أحدث 2500)</button>
+        <button class="btn btn-acc" onclick="fetchData()">جلب البيانات</button>
         <button class="btn btn-g" onclick="exportExcel()">تصدير إكسيل</button>
     </div>
 
@@ -90,8 +102,8 @@
     let rawInvoices=[], productsMap={}, unitsMapFactor={}, creditNotesMap={}, creators=[];
     let computed=[], excludedInvoices=[];
     
-    let productRules = JSON.parse(localStorage.getItem('pRules_v47') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('tRules_v47') || "{}");
+    let productRules = JSON.parse(localStorage.getItem('pRules_v48') || "{}");
+    let targetRules = JSON.parse(localStorage.getItem('tRules_v48') || "{}");
 
     const AUTO_RULES = [
         { keys: ["ورق كاشير", "80*70"], pp: 69, bp: 68 },
@@ -108,18 +120,20 @@
 
     async function fetchData() {
         const m = document.getElementById('targetMonth').value;
+        const limit = document.getElementById('limitSelect').value; // قراءة العدد المختار
+        
         if (!m) return alert("حدد الشهر أولاً");
         
         const btn = document.querySelector('.btn-acc');
         const oldTxt = btn.innerHTML;
-        btn.innerHTML = 'جاري الاتصال...';
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري جلب آخر ${limit} فاتورة...`;
         btn.disabled = true;
         
         try {
-            const res = await fetch(`/api/get-data?month=${m}`);
+            // إرسال الشهر والعدد للسيرفر
+            const res = await fetch(`/api/get-data?month=${m}&limit=${limit}`);
             const data = await res.json();
 
-            // إذا كان هناك خطأ قادم من السيرفر، نعرضه بوضوح
             if (data.error) throw new Error(data.error);
 
             rawInvoices = data.invoices || [];
@@ -142,7 +156,7 @@
 
         } catch(e) {
             console.error(e); 
-            alert("فشل الجلب:\n" + e.message); 
+            alert("فشل الجلب (حاول تقليل العدد): " + e.message); 
             btn.innerHTML = 'فشل';
         } finally {
             btn.disabled = false;
@@ -186,7 +200,6 @@
 
             // التحقق من الشهر المختار
             if (d.getFullYear() !== tYear || (d.getMonth() + 1) !== tMonth) {
-                // الفواتير التي خارج الشهر لا تعتبر خطأ، لكن لا تحسب
                 return;
             }
 
@@ -281,12 +294,12 @@
         document.getElementById('st_target_reward').innerText = tR.toLocaleString();
     }
 
-    function saveProductRules() { Object.keys(productsMap).forEach(k => { productRules[k] = { factor: parseFloat(document.getElementById(`f_${k}`).value), premiumPrice: parseFloat(document.getElementById(`pp_${k}`).value), premiumPct: parseFloat(document.getElementById(`ppct_${k}`).value), basePrice: parseFloat(document.getElementById(`bp_${k}`).value), basePct: parseFloat(document.getElementById(`bpct_${k}`).value) }; }); localStorage.setItem('pRules_v47', JSON.stringify(productRules)); processLogic(); alert('تم الحفظ'); }
-    function saveTargetRules() { creators.forEach(c => { targetRules[c] = { amt: parseFloat(document.getElementById(`ta_${c}`).value), rwd: parseFloat(document.getElementById(`tr_${c}`).value) }; }); localStorage.setItem('tRules_v47', JSON.stringify(targetRules)); processLogic(); alert('تم الحفظ'); }
-    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]?.premiumPrice>0)return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.basePct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v47', JSON.stringify(productRules)); renderProductRules(); }
+    function saveProductRules() { Object.keys(productsMap).forEach(k => { productRules[k] = { factor: parseFloat(document.getElementById(`f_${k}`).value), premiumPrice: parseFloat(document.getElementById(`pp_${k}`).value), premiumPct: parseFloat(document.getElementById(`ppct_${k}`).value), basePrice: parseFloat(document.getElementById(`bp_${k}`).value), basePct: parseFloat(document.getElementById(`bpct_${k}`).value) }; }); localStorage.setItem('pRules_v48', JSON.stringify(productRules)); processLogic(); alert('تم الحفظ'); }
+    function saveTargetRules() { creators.forEach(c => { targetRules[c] = { amt: parseFloat(document.getElementById(`ta_${c}`).value), rwd: parseFloat(document.getElementById(`tr_${c}`).value) }; }); localStorage.setItem('tRules_v48', JSON.stringify(targetRules)); processLogic(); alert('تم الحفظ'); }
+    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]?.premiumPrice>0)return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.basePct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v48', JSON.stringify(productRules)); renderProductRules(); }
     
     function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules})],{type:'application/json'}); saveAs(b, "Backup_Config.json"); }
-    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; localStorage.setItem('pRules_v47',JSON.stringify(productRules)); localStorage.setItem('tRules_v47',JSON.stringify(targetRules)); processLogic(); alert('تم الاستيراد'); }; r.readAsText(e.target.files[0]); }
+    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; localStorage.setItem('pRules_v48',JSON.stringify(productRules)); localStorage.setItem('tRules_v48',JSON.stringify(targetRules)); processLogic(); alert('تم الاستيراد'); }; r.readAsText(e.target.files[0]); }
 
     async function exportExcel() {
         if (!computed.length) return alert("لا توجد بيانات");
@@ -301,12 +314,9 @@
         sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
 
         const groups = {}; computed.forEach(i => { if(!groups[i.rep]) groups[i.rep] = []; groups[i.rep].push(i); });
-        
         Object.keys(groups).forEach(rep => {
-            let t = 0;
-            groups[rep].forEach(d => { t += d.bonus; sheet.addRow({ rep: d.rep, ref: d.ref, prod: d.prod, qty: d.qty, price: d.cartonPrice.toFixed(2), tier: d.tier, bonus: d.bonus.toFixed(2), date: d.date }); });
-            const r = sheet.addRow({ prod: `إجمالي المندوب: ${rep}`, bonus: t.toFixed(2) });
-            r.font = { bold: true }; r.getCell('prod').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } }; r.getCell('bonus').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
+            let t = 0; groups[rep].forEach(d => { t += d.bonus; sheet.addRow({ rep: d.rep, ref: d.ref, prod: d.prod, qty: d.qty, price: d.cartonPrice.toFixed(2), tier: d.tier, bonus: d.bonus.toFixed(2), date: d.date }); });
+            const r = sheet.addRow({ prod: `إجمالي المندوب: ${rep}`, bonus: t.toFixed(2) }); r.font = { bold: true }; r.getCell('prod').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } }; r.getCell('bonus').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
             sheet.addRow([]);
         });
         const buffer = await workbook.xlsx.writeBuffer();
