@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
     const API_KEY = process.env.QOYOD_API_KEY;
-    const targetMonth = req.query.month; // مثال: 2026-02
+    const targetMonth = req.query.month;
 
     if (!API_KEY) return res.status(500).json({ error: "API Key missing" });
     if (!targetMonth) return res.status(400).json({ error: "Month parameter is required" });
@@ -8,31 +8,26 @@ export default async function handler(req, res) {
     const headers = { "API-KEY": API_KEY, "Content-Type": "application/json" };
 
     try {
-        // 1. حساب التواريخ (نطاق 4 أشهر)
+        // 1. حساب النطاق الزمني (4 أشهر للسرعة)
         const [year, month] = targetMonth.split('-').map(Number);
-        
-        // تاريخ النهاية: آخر يوم في الشهر المختار
         const endDate = new Date(year, month, 0).toISOString().split('T')[0]; 
-        
-        // تاريخ البداية: نعود للوراء 4 أشهر فقط
-        // (month - 5) لأن الشهر في التاريخ يبدأ من 0، ولضمان تغطية 4 أشهر سابقة
         const startDateObj = new Date(year, month - 5, 1);
         const startDate = startDateObj.toISOString().split('T')[0];
 
-        // 2. بناء رابط الفواتير مع الفلتر الزمني الضيق
-        const invoiceUrl = `https://api.qoyod.com/2.0/invoices?q[status_in][]=Paid&q[status_in][]=Approved&q[status_in][]=Partially Paid&q[issue_date_gteq]=${startDate}&q[issue_date_lteq]=${endDate}&limit=1500`;
+        // 2. الروابط المحدثة (Qoyod API V2.0)
+        // لاحظ Base URL: https://api.qoyod.com/2.0
+        const BASE_URL = "https://api.qoyod.com/2.0";
 
         const urls = [
-            invoiceUrl,
-            `https://api.qoyod.com/2.0/products?limit=1500`,
-            `https://api.qoyod.com/2.0/product_units?limit=1000`,
-            // المرتجعات أيضاً نحضرها لنفس الفترة فقط لتخفيف الحمل
-            `https://api.qoyod.com/2.0/credit_notes?q[issue_date_gteq]=${startDate}&limit=500`
+            `${BASE_URL}/invoices?q[status_in][]=Paid&q[status_in][]=Approved&q[status_in][]=Partially Paid&q[issue_date_gteq]=${startDate}&q[issue_date_lteq]=${endDate}&limit=1500`,
+            `${BASE_URL}/products?limit=1500`,
+            `${BASE_URL}/product_units?limit=1000`,
+            `${BASE_URL}/credit_notes?q[issue_date_gteq]=${startDate}&limit=500`
         ];
 
         const results = await Promise.all(urls.map(url => 
             fetch(url, { headers }).then(async r => {
-                if (!r.ok) throw new Error(`Status ${r.status}`);
+                if (!r.ok) throw new Error(`API Error ${r.status}: ${r.statusText}`);
                 return r.json();
             })
         ));
@@ -54,6 +49,6 @@ export default async function handler(req, res) {
 
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ error: "فشل الاتصال: " + err.message });
+        return res.status(500).json({ error: "فشل الاتصال بقيود V2.0: " + err.message });
     }
 }
