@@ -2,165 +2,255 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>نظام البونص – الإصدار المنضبط</title>
+<title>نظام العمولات المتكامل – النسخة الكاملة</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
 <style>
 body{font-family:Cairo;background:#f4f6f9;padding:20px}
-.box{background:#fff;border-radius:12px;max-width:1500px;margin:auto;padding:20px}
-.tabs{display:flex;gap:10px;margin-bottom:20px}
-.tabs button{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:bold}
-.tabs button.active{background:#2c3e50;color:#fff}
+.box{background:#fff;border-radius:15px;max-width:1600px;margin:auto;box-shadow:0 4px 20px rgba(0,0,0,.1)}
+.tabs{display:flex;background:#2c3e50}
+.tabs button{flex:1;padding:15px;color:#ccc;background:none;border:none;font-weight:bold;cursor:pointer}
+.tabs button.active{background:#fff;color:#2c3e50;border-top:4px solid #2980b9}
+.tab{display:none;padding:25px}
+.tab.active{display:block}
 table{width:100%;border-collapse:collapse;margin-top:15px}
-th,td{padding:10px;border-bottom:1px solid #ddd;text-align:right}
-th{background:#f1f1f1}
-.badge{padding:4px 10px;border-radius:20px;font-size:12px}
+th,td{padding:12px;border-bottom:1px solid #ddd;text-align:right}
+th{background:#f8f9fa;position:sticky;top:0}
+.badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold}
 .ok{background:#d4edda;color:#155724}
+.mid{background:#fff3cd;color:#856404}
 .no{background:#f8d7da;color:#721c24}
+.card{background:#2c3e50;color:#fff;padding:20px;border-radius:12px;text-align:center}
+.stats{display:flex;gap:15px;flex-wrap:wrap;margin-bottom:20px}
 </style>
 </head>
-<body>
 
+<body>
 <div class="box">
 
 <div class="tabs">
-<button onclick="tab('main')" class="active" id="btn-main">البونص المستحق</button>
-<button onclick="tab('excluded')" id="btn-excluded">الفواتير المستبعدة</button>
+<button class="active" onclick="openTab('bonus',this)">البونص المستحق</button>
+<button onclick="openTab('pending',this)">المعلّق (آجل)</button>
+<button onclick="openTab('excluded',this)">الفواتير المستبعدة</button>
+<button onclick="openTab('products',this)">المنتجات</button>
+<button onclick="openTab('targets',this)">التارجت</button>
 </div>
 
+<div style="padding:20px;display:flex;gap:15px;align-items:end">
 <div>
-شهر الحساب:
+<label>شهر الحساب</label><br>
 <input type="month" id="targetMonth">
+</div>
 <button onclick="fetchData()">جلب البيانات</button>
+<button onclick="exportExcel()">تصدير Excel</button>
+</div>
+  <!-- تبويب البونص -->
+<div id="bonus" class="tab active">
+  <div class="stats">
+    <div class="card"><h3>إجمالي المبيعات</h3><div id="st_sales">0</div></div>
+    <div class="card"><h3>إجمالي البونص</h3><div id="st_bonus">0</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>المرجع</th><th>المندوب</th><th>المنتج</th>
+        <th>الكمية</th><th>سعر الكرتون</th>
+        <th>الفئة</th><th>%</th><th>البونص</th><th>تاريخ السداد</th>
+      </tr>
+    </thead>
+    <tbody id="bonusRows"></tbody>
+  </table>
 </div>
 
-<!-- البونص -->
-<div id="main">
-<table>
-<thead>
-<tr>
-<th>المرجع</th><th>المندوب</th><th>المنتج</th>
-<th>الكمية</th><th>سعر الكرتون</th>
-<th>النسبة</th><th>البونص</th><th>تاريخ السداد</th>
-</tr>
-</thead>
-<tbody id="mainRows"></tbody>
-</table>
+<!-- تبويب الآجل -->
+<div id="pending" class="tab">
+  <table>
+    <thead>
+      <tr>
+        <th>المرجع</th><th>المندوب</th><th>المنتج</th>
+        <th>الكمية</th><th>البونص المتوقع</th><th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody id="pendingRows"></tbody>
+  </table>
 </div>
 
-<!-- المستبعد -->
-<div id="excluded" style="display:none">
-<table>
-<thead>
-<tr>
-<th>المرجع</th><th>الحالة</th><th>السبب</th>
-</tr>
-</thead>
-<tbody id="excludedRows"></tbody>
-</table>
+<!-- تبويب المستبعد -->
+<div id="excluded" class="tab">
+  <table>
+    <thead>
+      <tr><th>المرجع</th><th>الحالة</th><th>سبب الاستبعاد</th></tr>
+    </thead>
+    <tbody id="excludedRows"></tbody>
+  </table>
 </div>
 
+<!-- تبويب المنتجات -->
+<div id="products" class="tab">
+  <table>
+    <thead>
+      <tr>
+        <th>المنتج</th><th>سعر ≥</th><th>%</th><th>سعر ≤</th><th>%</th>
+      </tr>
+    </thead>
+    <tbody id="productRows"></tbody>
+  </table>
+</div>
+
+<!-- تبويب التارجت -->
+<div id="targets" class="tab">
+  <table>
+    <thead>
+      <tr>
+        <th>المندوب</th><th>المبيعات</th><th>الهدف</th><th>المكافأة</th><th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody id="targetRows"></tbody>
+  </table>
 </div>
 
 <script>
-let rawInvoices = [];
-let computed = [];
-let excluded = [];
+let rawInvoices=[],computed=[],pending=[],excluded=[];
+let productRules=JSON.parse(localStorage.getItem('pRules')||"{}");
+let targetRules=JSON.parse(localStorage.getItem('tRules')||"{}");
 
-function tab(id){
-document.getElementById('main').style.display = id==='main'?'block':'none';
-document.getElementById('excluded').style.display = id==='excluded'?'block':'none';
-document.getElementById('btn-main').classList.toggle('active',id==='main');
-document.getElementById('btn-excluded').classList.toggle('active',id==='excluded');
+function openTab(id,btn){
+document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+document.getElementById(id).classList.add('active');
+btn.classList.add('active');
 }
 
 async function fetchData(){
-const m = document.getElementById('targetMonth').value;
-if(!m) return alert("اختر الشهر");
-
-const res = await fetch(`/api/get-data?month=${m}`);
-const data = await res.json();
-rawInvoices = data.invoices || [];
+const m=document.getElementById('targetMonth').value;
+if(!m)return alert("حدد الشهر");
+const res=await fetch(`/api/get-data?month=${m}`);
+const d=await res.json();
+rawInvoices=d.invoices||[];
 processLogic();
 }
 
 function processLogic(){
-computed = [];
-excluded = [];
-
-const [Y,M] = document.getElementById('targetMonth').value.split('-').map(Number);
+computed=[];pending=[];excluded=[];
+const [Y,M]=document.getElementById('targetMonth').value.split('-').map(Number);
 
 rawInvoices.forEach(inv=>{
-/* ❌ استبعاد الدفع الجزئي */
-if(inv.status === 'Partially Paid'){
+// ❌ دفع جزئي
+if(inv.status==='Partially Paid'){
 excluded.push({ref:inv.reference,st:inv.status,rs:'دفع جزئي'});
 return;
 }
 
-let paidDate = null;
+let payDate=null;
 
-/* الآجل → حسب تاريخ السداد */
+// آجل → حسب السداد
 if(inv.payments && inv.payments.length){
-paidDate = new Date(inv.payments[inv.payments.length-1].date);
+payDate=new Date(inv.payments.at(-1).date);
 }
+// نقدي
+if(!payDate) payDate=new Date(inv.issue_date);
 
-/* نقدي */
-if(!paidDate){
-paidDate = new Date(inv.issue_date);
-}
-
-if(paidDate.getMonth()+1 !== M || paidDate.getFullYear() !== Y){
-excluded.push({ref:inv.reference,st:inv.status,rs:'خارج شهر الحساب'});
+if(payDate.getMonth()+1!==M || payDate.getFullYear()!==Y){
+pending.push({ref:inv.reference,rep:inv.created_by,st:'آجل'});
 return;
 }
 
-/* حساب البنود */
 inv.line_items.forEach(it=>{
-const priceWithTax = it.unit_price * (1 + (it.tax_percent||0)/100);
-const cartonPrice = priceWithTax;
-const pct = cartonPrice >= 70 ? 2 : 1;
-const bonus = priceWithTax * it.quantity * pct / 100;
+const price=it.unit_price*(1+(it.tax_percent||0)/100);
+const rule=productRules[it.product_id]||{};
+const pct=price>= (rule.premium||70)?2:1;
+const bonus=price*it.quantity*pct/100;
 
 computed.push({
 ref:inv.reference,
 rep:inv.created_by,
 prod:it.product_name,
 qty:it.quantity,
-price:cartonPrice,
+price,
 pct,
 bonus,
-date:paidDate.toISOString().slice(0,10)
+date:payDate.toISOString().slice(0,10)
 });
 });
 });
-
-render();
+renderAll();
 }
 
-function render(){
-const m = document.getElementById('mainRows');
-const e = document.getElementById('excludedRows');
-m.innerHTML = '';
-e.innerHTML = '';
-
+function renderAll(){
+let sales=0,bonus=0;
+const b=document.getElementById('bonusRows');
+b.innerHTML='';
 computed.forEach(r=>{
-m.innerHTML += `
-<tr>
+sales+=r.price*r.qty;
+bonus+=r.bonus;
+b.innerHTML+=`<tr>
 <td>${r.ref}</td><td>${r.rep}</td><td>${r.prod}</td>
 <td>${r.qty}</td><td>${r.price.toFixed(2)}</td>
-<td><span class="badge ok">${r.pct}%</span></td>
-<td>${r.bonus.toFixed(2)}</td><td>${r.date}</td>
+<td><span class="badge ok">${r.pct===2?'تميز':'أساسي'}</span></td>
+<td>${r.pct}%</td><td>${r.bonus.toFixed(2)}</td><td>${r.date}</td>
 </tr>`;
+});
+document.getElementById('st_sales').innerText=sales.toLocaleString();
+document.getElementById('st_bonus').innerText=bonus.toLocaleString();
+
+// الآجل
+const p=document.getElementById('pendingRows');
+p.innerHTML='';
+pending.forEach(r=>{
+p.innerHTML+=`<tr><td>${r.ref}</td><td>${r.rep}</td><td>-</td><td>-</td><td>-</td><td>${r.st}</td></tr>`;
 });
 
+// المستبعد
+const e=document.getElementById('excludedRows');
+e.innerHTML='';
 excluded.forEach(r=>{
-e.innerHTML += `
-<tr>
-<td>${r.ref}</td><td>${r.st}</td>
-<td><span class="badge no">${r.rs}</span></td>
+e.innerHTML+=`<tr><td>${r.ref}</td><td>${r.st}</td><td><span class="badge no">${r.rs}</span></td></tr>`;
+});
+
+// المنتجات
+const pr=document.getElementById('productRows');
+pr.innerHTML='';
+Object.keys(productRules).forEach(pid=>{
+const r=productRules[pid];
+pr.innerHTML+=`<tr><td>${pid}</td><td>${r.premium||70}</td><td>2%</td><td>${r.base||69}</td><td>1%</td></tr>`;
+});
+
+// التارجت
+const tr=document.getElementById('targetRows');
+tr.innerHTML='';
+Object.keys(targetRules).forEach(rep=>{
+const cur=computed.filter(x=>x.rep===rep).reduce((a,b)=>a+b.price*b.qty,0);
+const t=targetRules[rep];
+const ok=cur>=t.amt;
+tr.innerHTML+=`<tr>
+<td>${rep}</td><td>${cur.toLocaleString()}</td>
+<td>${t.amt}</td><td>${t.rwd}</td>
+<td>${ok?'<span class="badge ok">محقق</span>':'<span class="badge no">غير محقق</span>'}</td>
 </tr>`;
 });
+}
+
+async function exportExcel(){
+if(!computed.length)return alert("لا يوجد بيانات");
+const wb=new ExcelJS.Workbook();
+const sh=wb.addWorksheet('Bonus');
+sh.columns=[
+{header:'المندوب',key:'rep'},
+{header:'المرجع',key:'ref'},
+{header:'المنتج',key:'prod'},
+{header:'الكمية',key:'qty'},
+{header:'البونص',key:'bonus'}
+];
+computed.forEach(r=>sh.addRow(r));
+const buf=await wb.xlsx.writeBuffer();
+saveAs(new Blob([buf]),'bonus.xlsx');
 }
 </script>
 
+</div>
 </body>
 </html>
