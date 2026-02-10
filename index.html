@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات الهجين V36</title>
+    <title>نظام العمولات الشامل V46</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -11,7 +11,7 @@
         :root{--p:#2c3e50; --acc:#2980b9; --bg:#f4f6f9; --g:#27ae60; --r:#c0392b;}
         body{font-family:'Cairo', sans-serif; background:var(--bg); padding:20px; color:var(--p);}
         .box{background:#fff; border-radius:15px; max-width:1600px; margin:auto; box-shadow:0 4px 25px rgba(0,0,0,0.1); overflow:hidden;}
-        .tabs-header{display:flex; background:var(--p); color:#fff; flex-wrap:wrap;}
+        .tabs-header{display:flex; background:var(--p); color:#fff;}
         .tab-btn{padding:15px 25px; cursor:pointer; background:transparent; border:none; color:#ccc; font-weight:bold; font-family:'Cairo'; transition:0.3s; flex:1;}
         .tab-btn.active{background:#fff; color:var(--p); border-top:4px solid var(--acc);}
         .tab-content{display:none; padding:25px;}
@@ -22,11 +22,8 @@
         table{width:100%; border-collapse:collapse; margin-top:15px;}
         th{background:#f8f9fa; padding:12px; text-align:right; border-bottom:2px solid #ddd; position:sticky; top:0; z-index:10;}
         td{padding:10px; border-bottom:1px solid #eee; vertical-align:middle;}
-        .badge{padding:4px 10px; border-radius:15px; font-size:0.85em; font-weight:bold; display:inline-block;}
-        .badge-p{background:#d4edda; color:#155724; border:1px solid #c3e6cb;}
-        .badge-b{background:#fff3cd; color:#856404; border:1px solid #ffeeba;}
-        .badge-r{background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;}
-        .badge-no{background:#ffebee; color:#c62828;}
+        .badge{padding:4px 10px; border-radius:15px; font-size:0.85em; font-weight:bold;}
+        .ok{background:#d4edda; color:#155724;} .mid{background:#fff3cd; color:#856404;} .no{background:#f8d7da; color:#721c24;}
         .btn{padding:10px 18px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-family:'Cairo'; margin-left:5px;}
         .btn-acc{background:var(--acc); color:#fff;} .btn-g{background:var(--g); color:#fff;}
         .tbl-input{width:70px; text-align:center; padding:5px; border:1px solid #ccc; border-radius:4px;}
@@ -36,277 +33,318 @@
 
 <div class="box">
     <div class="tabs-header">
-        <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-money-bill-wave"></i> البونص المستحق</button>
+        <button class="tab-btn active" onclick="switchTab('bonus')"><i class="fas fa-coins"></i> البونص المستحق</button>
         <button class="tab-btn" onclick="switchTab('excluded')"><i class="fas fa-ban"></i> المستبعدة</button>
-        <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-magic"></i> الأسعار والوحدات</button>
+        <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-box"></i> المنتجات</button>
         <button class="tab-btn" onclick="switchTab('targets')"><i class="fas fa-bullseye"></i> التارجت</button>
         <button class="tab-btn" onclick="switchTab('settings')"><i class="fas fa-cog"></i> الإعدادات</button>
     </div>
 
-    <div id="tab-main" class="tab-content active">
-        <div style="display:flex; gap:15px; align-items:flex-end; margin-bottom:20px; background:#f8f9fa; padding:20px; border-radius:12px;">
-            <div><label>الشهر</label><br><input type="month" id="targetMonth" style="padding:8px; border-radius:5px; border:1px solid #ccc;"></div>
-            <div><label>المندوب</label><br><select id="creatorFilter" onchange="renderUI()" style="padding:8px; width:200px; border-radius:5px; border:1px solid #ccc;"></select></div>
-            <button class="btn btn-acc" onclick="fetchData()">جلب البيانات</button>
-            <button class="btn btn-g" onclick="exportExcel()">تصدير إكسيل ملون</button>
-        </div>
+    <div style="padding:20px; background:#f8f9fa; display:flex; gap:15px; align-items:flex-end;">
+        <div><label>شهر الحساب</label><br><input type="month" id="targetMonth" style="padding:8px; border-radius:5px; border:1px solid #ccc;"></div>
+        <div><label>المندوب</label><br><select id="creatorFilter" onchange="renderUI()" style="padding:8px; width:200px; border-radius:5px;"></select></div>
+        <button class="btn btn-acc" onclick="fetchData()">جلب البيانات (آخر 4 شهور)</button>
+        <button class="btn btn-g" onclick="exportExcel()">تصدير إكسيل ملون</button>
+    </div>
 
+    <div id="tab-bonus" class="tab-content active">
         <div class="stats">
-            <div class="card"><h3>المبيعات المحسوبة</h3><div id="stat-sales" class="card-val">0</div></div>
-            <div class="card" style="background:var(--acc)"><h3>إجمالي البونص</h3><div id="stat-bonus" class="card-val">0</div></div>
-            <div class="card" style="background:#e67e22"><h3>التارجت</h3><div id="stat-target-reward" class="card-val">-</div></div>
+            <div class="card"><h3>إجمالي المبيعات المحسوبة</h3><div id="st_sales" class="card-val">0</div></div>
+            <div class="card" style="background:var(--acc)"><h3>إجمالي البونص</h3><div id="st_bonus" class="card-val">0</div></div>
+            <div class="card" style="background:#e67e22"><h3>المكافآت المقطوعة (تارجت)</h3><div id="st_target_reward" class="card-val">0</div></div>
         </div>
         <table>
-            <thead><tr><th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية</th><th>سعر الكرتون</th><th>الفئة</th><th>النسبة</th><th>البونص</th><th>تاريخ السداد</th></tr></thead>
-            <tbody id="mainRows"></tbody>
+            <thead><tr><th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية</th><th>سعر الكرتون</th><th>النوع</th><th>%</th><th>البونص</th><th>تاريخ السداد</th></tr></thead>
+            <tbody id="bonusRows"></tbody>
         </table>
     </div>
 
     <div id="tab-excluded" class="tab-content">
-        <h3>الفواتير التي لم تحسب ولماذا</h3>
-        <table>
-            <thead><tr><th>المرجع</th><th>المندوب</th><th>الحالة</th><th>تاريخ الفاتورة</th><th>سبب الاستبعاد</th></tr></thead>
-            <tbody id="excludedRows"></tbody>
-        </table>
+        <h3>فواتير تم استبعادها من الحساب</h3>
+        <table><thead><tr><th>المرجع</th><th>المندوب</th><th>الحالة</th><th>تاريخ الفاتورة</th><th>سبب الاستبعاد</th></tr></thead><tbody id="excludedRows"></tbody></table>
     </div>
 
     <div id="tab-products" class="tab-content">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-            <h3>إعدادات الأسعار</h3>
-            <div><button class="btn btn-acc" onclick="applySmartRules(true)">إعادة ضبط</button> <button class="btn btn-g" onclick="saveProductRules()">حفظ</button></div>
+            <h3>إعدادات الأسعار والوحدات</h3>
+            <div><button class="btn btn-acc" onclick="applySmartRules(true)">ضبط تلقائي</button> <button class="btn btn-g" onclick="saveProductRules()">حفظ التعديلات</button></div>
         </div>
-        <table><thead><tr><th>المنتج</th><th>معامل الكرتون</th><th>تميز (>=)</th><th>%</th><th>أساسي (<=)</th><th>%</th></tr></thead><tbody id="prodRows"></tbody></table>
+        <table><thead><tr><th>المنتج</th><th>معامل الكرتون</th><th>سعر التميز (>=)</th><th>%</th><th>سعر الأساسي (<=)</th><th>%</th></tr></thead><tbody id="productRows"></tbody></table>
     </div>
 
     <div id="tab-targets" class="tab-content">
-        <button class="btn btn-g" onclick="saveTargetRules()">حفظ التارجت</button>
-        <table><thead><tr><th>المندوب</th><th>المبيعات</th><th>الهدف</th><th>المكافأة</th><th>الحالة</th></tr></thead><tbody id="targetRows"></tbody></table>
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <h3>أهداف المبيعات (Targets)</h3>
+            <button class="btn btn-g" onclick="saveTargetRules()">حفظ التارجت</button>
+        </div>
+        <table><thead><tr><th>المندوب</th><th>المبيعات المحققة</th><th>الهدف المطلوب</th><th>مكافأة التحقيق</th><th>الحالة</th></tr></thead><tbody id="targetRows"></tbody></table>
     </div>
 
     <div id="tab-settings" class="tab-content">
-        <button class="btn btn-acc" onclick="exportBackup()">تصدير JSON</button>
-        <input type="file" id="importFile" onchange="importBackup(event)">
+        <h3>النسخ الاحتياطي</h3>
+        <p>يمكنك حفظ إعدادات الأسعار والتارجت لاستخدامها لاحقاً.</p>
+        <button class="btn btn-acc" onclick="exportBackup()">تصدير الإعدادات (JSON)</button>
+        <input type="file" onchange="importBackup(event)" style="margin-right:10px;">
     </div>
 </div>
 
 <script>
-    const DEFERRED_SKU = "754500950512";
-    let rawInvoices = [], productsMap = {}, unitsMap = {}, creators = [], creditNotesMap = {};
-    let computed = [], excluded = [];
+    let rawInvoices=[], productsMap={}, unitsMapFactor={}, creditNotesMap={}, creators=[];
+    let computed=[], excludedInvoices=[];
+    
+    // استعادة الإعدادات المحفوظة
+    let productRules = JSON.parse(localStorage.getItem('pRules_v46') || "{}");
+    let targetRules = JSON.parse(localStorage.getItem('tRules_v46') || "{}");
 
-    let productRules = JSON.parse(localStorage.getItem('pRules_v36') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('tRules_v36') || "{}");
-
+    // قواعد تلقائية مساعدة
     const AUTO_RULES = [
         { keys: ["ورق كاشير", "80*70"], pp: 69, bp: 68 },
         { keys: ["A4"], pp: 58, bp: 57 },
         { keys: ["رول تاريخ"], pp: 75, bp: 74 }
     ];
 
-    function switchTab(id) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + id).classList.add('active'); }
-
-    async function fetchData() {
-        const month = document.getElementById('targetMonth').value;
-        if(!month) return alert("حدد الشهر!");
-        const btn = document.querySelector('.btn-acc');
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الجلب...';
-        try {
-            const res = await fetch(`/api/get-data?month=${month}`);
-            const data = await res.json();
-            rawInvoices = data.invoices || [];
-            productsMap = data.productsMap || {};
-            unitsMap = {}; if(data.product_units) data.product_units.forEach(u => unitsMap[u.id] = parseFloat(u.conversion_factor || 1));
-            creditNotesMap = {}; if(data.credit_notes) data.credit_notes.forEach(cn => creditNotesMap[cn.id] = cn);
-            creators = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
-            
-            updateFilterDropdown();
-            applySmartRules(); 
-            processLogic();
-            btn.innerHTML = 'جلب البيانات';
-        } catch (e) { console.error(e); alert("خطأ اتصال"); btn.innerHTML = 'فشل'; }
+    function switchTab(id) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + id).classList.add('active');
+        event.currentTarget.classList.add('active');
     }
 
-    // ============================================
-    //  المنطق الجديد (مأخوذ من الكود الذي أرسلته)
-    // ============================================
+    async function fetchData() {
+        const m = document.getElementById('targetMonth').value;
+        if (!m) return alert("حدد الشهر أولاً");
+        
+        const btn = document.querySelector('.btn-acc');
+        const oldTxt = btn.innerHTML;
+        btn.innerHTML = 'جاري الاتصال...';
+        btn.disabled = true;
+        
+        try {
+            const res = await fetch(`/api/get-data?month=${m}`);
+            const data = await res.json();
+
+            if (data.error) throw new Error(data.error);
+
+            rawInvoices = data.invoices || [];
+            productsMap = data.productsMap || {};
+            
+            unitsMapFactor = {};
+            (data.product_units || []).forEach(u => unitsMapFactor[u.id] = parseFloat(u.conversion_factor || u.representation || 1));
+
+            creditNotesMap = {};
+            (data.credit_notes || []).forEach(cn => creditNotesMap[cn.id] = cn);
+            
+            creators = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
+            updateFilterDropdown();
+            
+            applySmartRules(); // تطبيق القواعد التلقائية عند الجلب
+            processLogic();
+            
+            btn.innerHTML = 'تم الجلب';
+            alert(`تم جلب ${rawInvoices.length} فاتورة.`);
+
+        } catch(e) {
+            console.error(e); 
+            alert("خطأ: " + e.message); 
+            btn.innerHTML = 'فشل';
+        } finally {
+            btn.disabled = false;
+            setTimeout(() => { if(btn.innerHTML !== oldTxt) btn.innerHTML = oldTxt; }, 2000);
+        }
+    }
+
+    // --- المنطق الحسابي (الصارم) ---
     function processLogic() {
-        computed = []; excluded = [];
-        const [tYear, tMonth] = document.getElementById('targetMonth').value.split('-').map(Number);
+        computed = [];
+        excludedInvoices = [];
+        const [tYear, tMonth] = document.getElementById("targetMonth").value.split("-").map(Number);
 
         rawInvoices.forEach(inv => {
-            // معلومات أساسية للاستبعاد
-            const baseEx = { ref: inv.reference, rep: inv.created_by, date: inv.issue_date, st: inv.status };
+            const baseInfo = { reference: inv.reference, rep: inv.created_by, status: inv.status, issue_date: inv.issue_date, total: inv.total };
 
-            // 1. استبعاد غير المدفوع
-            if (inv.status !== 'Paid') {
-                excluded.push({ ...baseEx, rs: 'غير مدفوعة (أو دفع جزئي)' });
+            if (inv.status !== "Paid") {
+                excludedInvoices.push({ ...baseInfo, reason: "غير مدفوعة (Paid Only)" });
                 return;
             }
 
-            // 2. التحقق من الدفع الكامل (Total vs Total Paid)
-            const totalInv = parseFloat(inv.total || 0);
-            let totalPaid = 0;
-            let lastPaymentDate = inv.issue_date; // افتراضي للنقدي
+            const payments = inv.payments || [];
+            const total = parseFloat(inv.total || 0);
+            const totalPaid = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+
+            if (Math.abs(totalPaid - total) > 0.01) {
+                excludedInvoices.push({ ...baseInfo, reason: "دفع جزئي" });
+                return;
+            }
+
             let isDeferred = false;
-
-            if (inv.payments && inv.payments.length > 0) {
-                inv.payments.forEach(p => {
-                    totalPaid += parseFloat(p.amount || 0);
-                    if (new Date(p.date) > new Date(lastPaymentDate)) lastPaymentDate = p.date; // نأخذ تاريخ آخر دفعة
+            let lastPaymentDate = inv.issue_date;
+            if (payments.length > 0) {
+                payments.forEach(p => {
                     if (p.date !== inv.issue_date) isDeferred = true;
+                    if (new Date(p.date) > new Date(lastPaymentDate)) lastPaymentDate = p.date;
                 });
-            } else {
-                // نقدي بدون سجل مدفوعات مفصل
-                totalPaid = totalInv;
             }
 
-            // التأكد من تطابق المبلغ (استبعاد الدفع الجزئي بدقة)
-            if (Math.abs(totalPaid - totalInv) > 1.00) { // هامش بسيط للكسور
-                excluded.push({ ...baseEx, rs: 'دفع جزئي أو خطأ في المبلغ' });
+            const refDate = isDeferred ? lastPaymentDate : inv.issue_date;
+            const d = new Date(refDate);
+
+            // تحقق الشهر
+            if (d.getFullYear() !== tYear || (d.getMonth() + 1) !== tMonth) {
+                excludedInvoices.push({ ...baseInfo, reason: `تاريخ السداد (${refDate}) خارج الشهر` });
                 return;
             }
 
-            // 3. التحقق من تاريخ السداد (هل هو في الشهر المختار؟)
-            const payD = new Date(lastPaymentDate);
-            if (payD.getFullYear() !== tYear || (payD.getMonth() + 1) !== tMonth) {
-                excluded.push({ ...baseEx, rs: `تاريخ السداد (${lastPaymentDate}) خارج الشهر` });
-                return;
-            }
-
-            // 4. المرتجعات
+            // المرتجعات
             let returns = {};
-            if(inv.allocations) inv.allocations.forEach(a => {
-                if(a.source_type === 'CreditNote') {
+            (inv.allocations || []).forEach(a => {
+                if (a.source_type === "CreditNote") {
                     const cn = creditNotesMap[a.source_id];
-                    if(cn && cn.line_items) cn.line_items.forEach(li => returns[li.product_id] = (returns[li.product_id] || 0) + parseFloat(li.quantity));
+                    (cn?.line_items || []).forEach(li => returns[li.product_id] = (returns[li.product_id] || 0) + parseFloat(li.quantity || 0));
                 }
             });
 
-            // 5. حساب بنود الفاتورة
-            let hasBonus = false;
+            let hasValidItems = false;
             inv.line_items.forEach(item => {
-                if(item.sku === DEFERRED_SKU) return;
-                
                 const pid = item.product_id;
-                const rule = productRules[pid] || {};
-                const unifiedName = productsMap[pid] ? productsMap[pid].name : item.product_name;
+                const rule = productRules[pid] || {}; // استخدام القواعد المحفوظة
+                const priceInclTax = parseFloat(item.unit_price || 0) * (1 + (parseFloat(item.tax_percent || 0) / 100));
 
-                // السعر شامل الضريبة
-                const price = parseFloat(item.unit_price) * (1 + (parseFloat(item.tax_percent || 0) / 100));
-
-                // منطق الوحدات (ذكي + يدوي)
                 let mult = 1;
                 const isCarton = (item.unit_type_name || "").includes("كرتون");
+                
+                // الأولوية: 1. إعدادات المستخدم 2. وحدات قيود 3. الافتراضي 1
                 if (!isCarton) {
-                    mult = unitsMap[item.unit_type] || parseFloat(rule.factor) || 1;
+                    if (parseFloat(rule.factor) > 0) mult = parseFloat(rule.factor);
+                    else mult = unitsMapFactor[item.unit_type] || 1;
                 }
-                const cartonPrice = price * mult;
-                const netQty = Math.max(0, parseFloat(item.quantity) - (returns[pid] || 0));
+
+                const cartonPrice = priceInclTax * mult;
+                const netQty = Math.max(0, parseFloat(item.quantity || 0) - (returns[pid] || 0));
 
                 if (netQty <= 0) return;
 
-                // منطق النسب (حسب الإعدادات المرنة لكن بالتدفق الجديد)
-                let pct = 0, tier = "أقل من الحد", badge = "badge-r";
+                // منطق البونص المرن
+                let pct = 0; let tier = "أقل";
                 
-                // استخدام إعدادات V35 المرنة (بدل 70 الثابتة، لتتمكن من تغييرها)
-                if (rule.premiumPrice > 0 && cartonPrice >= rule.premiumPrice) {
-                    pct = rule.premiumPct || 2; tier = "تميز"; badge = "badge-p";
-                } else if (rule.basePrice > 0 && cartonPrice <= rule.basePrice) { // المنطق العكسي للأساسي
-                    pct = rule.basePct || 1; tier = "أساسي"; badge = "badge-b";
-                }
+                const pPrice = parseFloat(rule.premiumPrice) || 70; // افتراضي 70
+                const bPrice = parseFloat(rule.basePrice) || 0; // افتراضي 0 (يعني أي شيء فوق الصفر)
 
-                if (pct > 0) {
-                    hasBonus = true;
-                    computed.push({
-                        ref: inv.reference, rep: inv.created_by, prod: unifiedName,
-                        qty: netQty.toFixed(1), sellCarton: cartonPrice, 
-                        tier, badge, pct, bonus: (price * netQty * (pct/100)),
-                        total: price * netQty, date: lastPaymentDate
-                    });
-                }
+                if (cartonPrice >= pPrice) { pct = rule.premiumPct || 2; tier = "تميز"; }
+                else if (cartonPrice > bPrice) { pct = rule.basePct || 1; tier = "أساسي"; }
+
+                if (pct === 0) return;
+
+                hasValidItems = true;
+                computed.push({
+                    ref: inv.reference, rep: inv.created_by, prod: productsMap[pid]?.name || item.product_name,
+                    qty: netQty.toFixed(1), cartonPrice: cartonPrice, pct, bonus: (priceInclTax * netQty * (pct / 100)),
+                    tier, date: refDate
+                });
             });
-
-            if (!hasBonus) {
-                // الفاتورة سليمة لكن منتجاتها لا تستحق بونص
-               // excluded.push({ ...baseEx, rs: 'المنتجات لا تحقق شروط البونص' });
-            }
+            
+            if (!hasValidItems) excludedInvoices.push({ ...baseInfo, reason: "لا توجد منتجات مستحقة" });
         });
         renderUI();
     }
 
-    // ============================================
-    //  دوال العرض والتصدير (V35 Features)
-    // ============================================
+    // --- العرض ---
     function renderUI() {
-        const rows = document.getElementById('mainRows'); rows.innerHTML = '';
+        const rows = document.getElementById('bonusRows'); rows.innerHTML = '';
         const f = document.getElementById('creatorFilter').value;
-        const filtered = computed.filter(d => f === 'all' || d.rep === f);
-        let sT = 0, bT = 0;
+        const filtered = computed.filter(d => f === '' || f === 'all' || d.rep === f);
         
+        let sT=0, bT=0;
         filtered.forEach(r => {
-            sT += r.total; bT += r.bonus;
-            rows.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td>${r.prod}</td><td>${r.qty}</td><td>${r.sellCarton.toFixed(2)}</td><td><span class="badge ${r.badge}">${r.tier}</span></td><td>${r.pct}%</td><td><b>${r.bonus.toFixed(2)}</b></td><td>${r.date}</td></tr>`;
+            sT += (r.cartonPrice * r.qty); bT += r.bonus;
+            rows.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td>${r.prod}</td><td>${r.qty}</td><td>${r.cartonPrice.toFixed(2)}</td><td><span class="badge ${r.pct===2?'ok':'mid'}">${r.tier}</span></td><td>${r.pct}%</td><td><b>${r.bonus.toFixed(2)}</b></td><td>${r.date}</td></tr>`;
         });
-        document.getElementById('stat-sales').innerText = sT.toLocaleString();
-        document.getElementById('stat-bonus').innerText = bT.toLocaleString();
+        document.getElementById('st_sales').innerText = sT.toLocaleString();
+        document.getElementById('st_bonus').innerText = bT.toLocaleString();
 
-        // عرض المستبعدة
         const exRows = document.getElementById('excludedRows'); exRows.innerHTML = '';
-        excluded.filter(d => f === 'all' || d.rep === f).forEach(r => {
-            exRows.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td>${r.st}</td><td>${r.date}</td><td><span class="badge badge-no">${r.rs}</span></td></tr>`;
+        excludedInvoices.filter(d => f === '' || f === 'all' || d.rep === f).forEach(r => {
+            exRows.innerHTML += `<tr><td>${r.reference}</td><td>${r.rep}</td><td>${r.status}</td><td>${r.date}</td><td><span class="badge no">${r.reason}</span></td></tr>`;
         });
 
         renderProductRules(); renderTargetTable();
     }
 
+    // --- المنتجات والتارجت ---
+    function renderProductRules() { 
+        const r = document.getElementById('productRows'); r.innerHTML = ''; 
+        Object.keys(productsMap).forEach(k => { 
+            const rule = productRules[k] || {}; 
+            r.innerHTML += `<tr><td>${productsMap[k].name}</td><td><input type="number" class="tbl-input" id="f_${k}" value="${rule.factor||0}"></td><td><input type="number" class="tbl-input" id="pp_${k}" value="${rule.premiumPrice||0}"></td><td><input type="number" class="tbl-input" id="ppct_${k}" value="${rule.premiumPct||2}"></td><td><input type="number" class="tbl-input" id="bp_${k}" value="${rule.basePrice||0}"></td><td><input type="number" class="tbl-input" id="bpct_${k}" value="${rule.basePct||1}"></td></tr>`; 
+        }); 
+    }
+    
+    function renderTargetTable() { 
+        const r = document.getElementById('targetRows'); r.innerHTML = ''; 
+        let tR = 0;
+        creators.forEach(c => { 
+            const tr = targetRules[c] || {}; 
+            const sales = computed.filter(d => d.rep === c).reduce((a, b) => a + (b.cartonPrice * b.qty), 0); 
+            const achieved = sales >= (tr.amt || 9999999);
+            if(achieved) tR += (tr.rwd || 0);
+            r.innerHTML += `<tr><td>${c}</td><td>${sales.toLocaleString()}</td><td><input type="number" class="tbl-input" id="ta_${c}" value="${tr.amt||0}"></td><td><input type="number" class="tbl-input" id="tr_${c}" value="${tr.rwd||0}"></td><td>${achieved ? '<span class="badge ok">متحقق</span>' : '<span class="badge no">غير</span>'}</td></tr>`; 
+        }); 
+        document.getElementById('st_target_reward').innerText = tR.toLocaleString();
+    }
+
+    // --- الحفظ والنسخ ---
+    function saveProductRules() { Object.keys(productsMap).forEach(k => { productRules[k] = { factor: parseFloat(document.getElementById(`f_${k}`).value), premiumPrice: parseFloat(document.getElementById(`pp_${k}`).value), premiumPct: parseFloat(document.getElementById(`ppct_${k}`).value), basePrice: parseFloat(document.getElementById(`bp_${k}`).value), basePct: parseFloat(document.getElementById(`bpct_${k}`).value) }; }); localStorage.setItem('pRules_v46', JSON.stringify(productRules)); processLogic(); alert('تم الحفظ'); }
+    function saveTargetRules() { creators.forEach(c => { targetRules[c] = { amt: parseFloat(document.getElementById(`ta_${c}`).value), rwd: parseFloat(document.getElementById(`tr_${c}`).value) }; }); localStorage.setItem('tRules_v46', JSON.stringify(targetRules)); processLogic(); alert('تم الحفظ'); }
+    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]?.premiumPrice>0)return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.basePct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v46', JSON.stringify(productRules)); renderProductRules(); }
+    
+    function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules})],{type:'application/json'}); saveAs(b, "Backup_Config.json"); }
+    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; localStorage.setItem('pRules_v46',JSON.stringify(productRules)); localStorage.setItem('tRules_v46',JSON.stringify(targetRules)); processLogic(); alert('تم الاستيراد'); }; r.readAsText(e.target.files[0]); }
+
+    // --- إكسيل ملون ---
     async function exportExcel() {
-        const month = document.getElementById('targetMonth').value;
         if (!computed.length) return alert("لا توجد بيانات");
         const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet(`بونص ${month}`);
+        const sheet = workbook.addWorksheet('تقرير البونص');
+        
         sheet.columns = [
-            { header: 'المندوب', key: 'rep', width: 20 }, { header: 'المرجع', key: 'ref', width: 12 },
-            { header: 'المنتج', key: 'prod', width: 35 }, { header: 'الكمية', key: 'qty', width: 10 },
-            { header: 'البونص', key: 'bonus', width: 15 }, { header: 'التاريخ', key: 'date', width: 15 }
+            { header: 'المندوب', key: 'rep', width: 20 },
+            { header: 'المرجع', key: 'ref', width: 15 },
+            { header: 'المنتج', key: 'prod', width: 35 },
+            { header: 'الكمية', key: 'qty', width: 10 },
+            { header: 'سعر الكرتون', key: 'price', width: 15 },
+            { header: 'الفئة', key: 'tier', width: 10 },
+            { header: 'البونص', key: 'bonus', width: 15 },
+            { header: 'التاريخ', key: 'date', width: 15 }
         ];
+
+        // تلوين الهيدر
         sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
         sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
-        
+
         const groups = {}; computed.forEach(i => { if(!groups[i.rep]) groups[i.rep] = []; groups[i.rep].push(i); });
+        
         Object.keys(groups).forEach(rep => {
-            let t = 0; groups[rep].forEach(d => { t += d.bonus; sheet.addRow({rep: d.rep, ref: d.ref, prod: d.prod, qty: d.qty, bonus: d.bonus.toFixed(2), date: d.date}); });
-            const sR = sheet.addRow({ prod: `إجمالي المندوب: ${rep}`, bonus: t.toFixed(2) });
-            sR.font = { bold: true }; sR.getCell('bonus').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
+            let t = 0;
+            groups[rep].forEach(d => {
+                t += d.bonus;
+                sheet.addRow({
+                    rep: d.rep, ref: d.ref, prod: d.prod, qty: d.qty,
+                    price: d.cartonPrice.toFixed(2), tier: d.tier,
+                    bonus: d.bonus.toFixed(2), date: d.date
+                });
+            });
+            // سطر الإجمالي الملون
+            const r = sheet.addRow({ prod: `إجمالي المندوب: ${rep}`, bonus: t.toFixed(2) });
+            r.font = { bold: true };
+            r.getCell('prod').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } };
+            r.getCell('bonus').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } }; // أخضر فاتح
             sheet.addRow([]);
         });
+
         const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), `Bonus_${month}.xlsx`);
+        saveAs(new Blob([buffer]), 'Bonus_Full_Report.xlsx');
     }
 
     function updateFilterDropdown() { const s=document.getElementById('creatorFilter'); s.innerHTML='<option value="all">الكل</option>'; creators.forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`); }
-    
-    function renderProductRules() { 
-        const r = document.getElementById('prodRows'); r.innerHTML = '';
-        Object.keys(productsMap).forEach(k => {
-            const rule = productRules[k] || {};
-            r.innerHTML += `<tr><td>${productsMap[k].name}</td><td><input type="number" class="tbl-input" id="f_${k}" value="${rule.factor||0}"></td><td><input type="number" class="tbl-input" id="pp_${k}" value="${rule.premiumPrice||0}"></td><td><input type="number" class="tbl-input" id="ppct_${k}" value="${rule.premiumPct||2}"></td><td><input type="number" class="tbl-input" id="bp_${k}" value="${rule.basePrice||0}"></td><td><input type="number" class="tbl-input" id="bpct_${k}" value="${rule.basePct||1}"></td></tr>`;
-        });
-    }
-    
-    function renderTargetTable() {
-        const r = document.getElementById('targetRows'); r.innerHTML = '';
-        creators.forEach(c => {
-            const tr = targetRules[c] || {};
-            const sales = computed.filter(d => d.rep === c).reduce((a, b) => a + b.total, 0);
-            r.innerHTML += `<tr><td>${c}</td><td>${sales.toLocaleString()}</td><td><input type="number" class="tbl-input" id="ta_${c}" value="${tr.amt||0}"></td><td><input type="number" class="tbl-input" id="tr_${c}" value="${tr.rwd||0}"></td><td>${sales >= tr.amt ? '✅' : '❌'}</td></tr>`;
-        });
-    }
-
-    function saveProductRules() { Object.keys(productsMap).forEach(k => { productRules[k] = { factor: parseFloat(document.getElementById(`f_${k}`).value), premiumPrice: parseFloat(document.getElementById(`pp_${k}`).value), premiumPct: parseFloat(document.getElementById(`ppct_${k}`).value), basePrice: parseFloat(document.getElementById(`bp_${k}`).value), basePct: parseFloat(document.getElementById(`bpct_${k}`).value) }; }); localStorage.setItem('pRules_v36', JSON.stringify(productRules)); processLogic(); }
-    function saveTargetRules() { creators.forEach(c => { targetRules[c] = { amt: parseFloat(document.getElementById(`ta_${c}`).value), rwd: parseFloat(document.getElementById(`tr_${c}`).value) }; }); localStorage.setItem('tRules_v36', JSON.stringify(targetRules)); processLogic(); }
-    function applySmartRules(force=false) { let cnt=0; Object.keys(productsMap).forEach(k=>{ if(!force&&productRules[k]?.premiumPrice>0)return; const n=productsMap[k].name.toLowerCase(); for(let r of AUTO_RULES) if(r.keys.some(x=>n.includes(x.toLowerCase()))){ productRules[k]={factor:productRules[k]?.factor||0, premiumPrice:r.pp, premiumPct:r.ppct||2, basePrice:r.bp, basePct:r.basePct||1}; cnt++; break; } }); if(cnt>0) localStorage.setItem('pRules_v36', JSON.stringify(productRules)); renderProductRules(); }
-    function exportBackup() { const b=new Blob([JSON.stringify({pRules:productRules, tRules:targetRules})],{type:'application/json'}); saveAs(b, "Backup.json"); }
-    function importBackup(e) { const r=new FileReader(); r.onload=x=>{ const d=JSON.parse(x.target.result); productRules=d.pRules||{}; targetRules=d.tRules||{}; localStorage.setItem('pRules_v36',JSON.stringify(productRules)); processLogic(); alert('تم'); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
 </html>
