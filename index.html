@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات المتكامل V49 (الأصلي)</title>
+    <title>نظام العمولات المتكامل V36 - محسّن</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -31,6 +31,7 @@
         .btn-g{background:var(--g); color:#fff;}
         .tbl-input{width:80px; text-align:center; padding:6px; border:1px solid #ccc; border-radius:5px;}
         .debug-bar{background:#ebf5fb; padding:10px 20px; font-size:0.85em; border-bottom:1px solid #d6eaf8; color:#2e86c1;}
+        .error-log{background:#f8d7da; color:#721c24; padding:10px; border-radius:8px; margin:10px 0; font-size:0.9em; max-height:200px; overflow-y:auto;}
     </style>
 </head>
 <body>
@@ -38,10 +39,11 @@
 <div class="box">
     <div class="tabs-header">
         <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-money-bill-wave"></i> البونص المستحق</button>
-        <button class="tab-btn" onclick="switchTab('suspended')"><i class="fas fa-clock"></i> المعلق</button>
+        <button class="tab-btn" onclick="switchTab('suspended')"><i class="fas fa-clock"></i> المعلق (تحت التحصيل)</button>
         <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-magic"></i> الأسعار والوحدات</button>
         <button class="tab-btn" onclick="switchTab('targets')"><i class="fas fa-bullseye"></i> الأهداف والتارجت</button>
         <button class="tab-btn" onclick="switchTab('backup')"><i class="fas fa-database"></i> الإعدادات</button>
+        <button class="tab-btn" onclick="switchTab('debug')"><i class="fas fa-bug"></i> سجل الأخطاء</button>
     </div>
 
     <div id="debug-info" class="debug-bar" style="display:none;"></div>
@@ -63,7 +65,7 @@
         <div style="overflow-x:auto;">
             <table>
                 <thead>
-                    <tr><th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية</th><th>سعر الكرتون</th><th>الفئة</th><th>النسبة</th><th>البونص</th><th>تاريخ السداد</th></tr>
+                    <tr><th>المرجع</th><th>المندوب</th><th>المنتج (موحد)</th><th>الكمية</th><th>سعر الكرتون</th><th>الفئة</th><th>النسبة</th><th>البونص</th><th>تاريخ السداد</th></tr>
                 </thead>
                 <tbody id="mainRows"></tbody>
             </table>
@@ -113,15 +115,53 @@
             </div>
         </div>
     </div>
+
+    <div id="tab-debug" class="tab-content">
+        <h3>سجل الأخطاء والتحليل</h3>
+        <button class="btn btn-acc" onclick="clearErrorLog()"><i class="fas fa-trash"></i> مسح السجل</button>
+        <div id="error-log" class="error-log" style="margin-top:15px;"></div>
+    </div>
 </div>
 
 <script>
     const DEFERRED_SKU = "754500950512";
     let rawInvoices = [], productsMap = {}, unitsMap = {}, creators = [], creditNotesMap = {};
     let computed = [], suspended = [];
+    let errorLog = [];
 
-    let productRules = JSON.parse(localStorage.getItem('pRules_v49') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('tRules_v49') || "{}");
+    // جلب الإعدادات من الذاكرة المحلية
+    let productRules = JSON.parse(localStorage.getItem('pRules_v36') || "{}");
+    let targetRules = JSON.parse(localStorage.getItem('tRules_v36') || "{}");
+
+    function logError(message, data = {}) {
+        const timestamp = new Date().toLocaleString('ar-SA');
+        errorLog.push({ timestamp, message, data });
+        console.error(message, data);
+        updateErrorDisplay();
+    }
+
+    function updateErrorDisplay() {
+        const logDiv = document.getElementById('error-log');
+        if (!logDiv) return;
+        
+        if (errorLog.length === 0) {
+            logDiv.innerHTML = '<p style="color:#666; text-align:center;">لا توجد أخطاء مسجلة</p>';
+            return;
+        }
+
+        logDiv.innerHTML = errorLog.map((log, idx) => `
+            <div style="border-bottom:1px solid #f5c6cb; padding:8px; margin-bottom:8px;">
+                <strong>#${idx + 1} - ${log.timestamp}</strong><br>
+                ${log.message}<br>
+                ${Object.keys(log.data).length > 0 ? '<small><pre>' + JSON.stringify(log.data, null, 2) + '</pre></small>' : ''}
+            </div>
+        `).reverse().join('');
+    }
+
+    function clearErrorLog() {
+        errorLog = [];
+        updateErrorDisplay();
+    }
 
     function switchTab(id) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -137,156 +177,272 @@
         const dbg = document.getElementById('debug-info');
         
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
-        dbg.style.display = 'block'; dbg.innerHTML = 'جاري الاتصال بـ API قيود وجلب البيانات...';
+        btn.disabled = true;
+        dbg.style.display = 'block';
+        dbg.innerText = 'جاري الاتصال بالخادم...';
 
         try {
-            const res = await fetch(`/api/get-data?month=${month}`);
+            const res = await fetch('/api/qoyod-data');
+            if(!res.ok) throw new Error('فشل في جلب البيانات');
             const data = await res.json();
-            
+
             rawInvoices = data.invoices || [];
             productsMap = data.productsMap || {};
-            
             unitsMap = {};
-            if(data.product_units) data.product_units.forEach(u => unitsMap[u.id] = parseFloat(u.conversion_factor || 1));
-            
+            (data.product_units || []).forEach(u => unitsMap[u.id] = u.name_ar || u.name_en);
+
             creditNotesMap = {};
-            if(data.credit_notes) data.credit_notes.forEach(cn => creditNotesMap[cn.id] = cn);
+            (data.credit_notes || []).forEach(cn => {
+                const inv_ref = cn.invoice_reference;
+                if(!inv_ref) return;
+                creditNotesMap[inv_ref] = creditNotesMap[inv_ref] || [];
+                creditNotesMap[inv_ref].push(cn);
+            });
+
+            creators = [...new Set(rawInvoices.map(i => i.creator).filter(Boolean))].sort();
             
-            creators = [...new Set(rawInvoices.map(i => i.created_by).filter(Boolean))];
+            dbg.innerText = `✓ تم جلب ${rawInvoices.length} فاتورة مدفوعة، ${Object.keys(productsMap).length} منتج، ${Object.keys(creditNotesMap).length} إشعار دائن`;
             
-            updateFilterDropdown();
-            applySmartRules(); 
+            applySmartRules(false);
             processLogic();
-            
-            btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث البيانات';
-            dbg.innerHTML = `تم جلب ${rawInvoices.length} فاتورة بنجاح.`;
-        } catch (e) {
-            console.error(e); alert("خطأ في جلب البيانات: " + e.message);
-            btn.innerHTML = 'فشل التحديث';
+            updateFilterDropdown();
+            renderUI();
+
+        } catch(e) {
+            alert('خطأ: ' + e.message);
+            logError('خطأ في جلب البيانات', { error: e.message });
+            dbg.innerText = '⚠ خطأ: ' + e.message;
+        } finally {
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث وجلب';
+            btn.disabled = false;
         }
     }
 
     function processLogic() {
-        computed = []; suspended = [];
-        const [tYear, tMonth] = document.getElementById('targetMonth').value.split('-').map(Number);
+        const month = document.getElementById('targetMonth').value;
+        if(!month) return;
+
+        computed = [];
+        suspended = [];
+        const [year, mon] = month.split('-');
 
         rawInvoices.forEach(inv => {
-            let amountPaidInTargetMonth = 0;
-            let foundPaymentInMonth = false;
-            let finalPayDate = inv.issue_date;
+            const items = inv.inventory_items || [];
+            const rep = inv.creator || "غير معروف";
+            const invRef = inv.reference || inv.id;
+            const payDate = inv.payment_date || "";
+            const issueDate = inv.issue_date || "";
 
-            if (inv.payments && inv.payments.length > 0) {
-                inv.payments.forEach(pay => {
-                    const pDate = new Date(pay.date);
-                    if (pDate.getMonth() + 1 === tMonth && pDate.getFullYear() === tYear) {
-                        amountPaidInTargetMonth += parseFloat(pay.amount);
-                        finalPayDate = pay.date;
-                        foundPaymentInMonth = true;
-                    }
-                });
-            }
-
-            if (!foundPaymentInMonth) {
-                const iDate = new Date(inv.issue_date);
-                if (iDate.getMonth() + 1 === tMonth && iDate.getFullYear() === tYear && inv.status === 'Paid') {
-                    amountPaidInMonth = parseFloat(inv.total);
-                    foundPaymentInMonth = true;
+            items.forEach((it, idx) => {
+                const pid = it.product_id;
+                if(!pid || !productsMap[pid]) {
+                    logError(`منتج غير معروف في الفاتورة ${invRef}`, { productId: pid, item: it });
+                    return;
                 }
-            }
 
-            const paidRatio = foundPaymentInMonth ? (amountPaidInTargetMonth / (parseFloat(inv.total) || 1)) : 0;
-            
-            // ملاحظة: بما أن السيرفر يجلب فقط Paid، فإن المعلق هنا لن يظهر إلا إذا كان هناك فاتورة Paid ولكن دفعها ليس في هذا الشهر
-            const isPending = (inv.status === 'Approved' || inv.status === 'Partially Paid') && !foundPaymentInMonth;
+                const pName = productsMap[pid].name;
+                const sku = productsMap[pid].sku;
 
-            let invoiceReturns = {};
-            if(inv.allocations) {
-                inv.allocations.forEach(alloc => {
-                    if(alloc.source_type === 'CreditNote') {
-                        const cn = creditNotesMap[alloc.source_id];
-                        if(cn && cn.line_items) {
-                            cn.line_items.forEach(li => {
-                                invoiceReturns[li.product_id] = (invoiceReturns[li.product_id] || 0) + parseFloat(li.quantity);
+                // تخطي المنتج المؤجل
+                if(sku === DEFERRED_SKU) return;
+
+                const sellUnit = it.unit_type;
+                const qtyRaw = parseFloat(it.quantity) || 0;
+                const unitPrice = parseFloat(it.unit_price) || 0;
+
+                let netQty = qtyRaw;
+                // خصم الإرجاعات
+                const returns = (creditNotesMap[invRef] || []).filter(cn => {
+                    const cnItems = cn.inventory_items || [];
+                    return cnItems.some(ci => ci.product_id == pid);
+                });
+
+                returns.forEach(cn => {
+                    (cn.inventory_items || []).forEach(ci => {
+                        if(ci.product_id == pid && ci.unit_type === sellUnit) {
+                            netQty -= parseFloat(ci.quantity) || 0;
+                        }
+                    });
+                });
+
+                if(netQty <= 0) return;
+
+                const rule = productRules[pid] || {};
+                let cartonFactor = rule.factor || 0;
+                let cartonQty = 0;
+
+                // تحويل الوحدة للكراتين إذا لم تكن "كرتون" بشكل مباشر
+                const unitNameLower = (unitsMap[sellUnit] || sellUnit || "").toLowerCase();
+                const isCarton = unitNameLower.includes("كرتون") || unitNameLower.includes("carton");
+
+                if(isCarton) {
+                    cartonQty = netQty;
+                } else {
+                    if(cartonFactor > 0) {
+                        cartonQty = netQty / cartonFactor;
+                    } else {
+                        logError(`معامل تحويل مفقود للمنتج ${pName}`, { 
+                            productId: pid, 
+                            unitType: sellUnit, 
+                            unitName: unitsMap[sellUnit],
+                            invoice: invRef 
+                        });
+                        return;
+                    }
+                }
+
+                // حساب سعر الكرتون
+                let sellCarton = 0;
+                if(isCarton) {
+                    sellCarton = unitPrice;
+                } else {
+                    if(cartonFactor > 0) {
+                        sellCarton = unitPrice * cartonFactor;
+                    } else {
+                        logError(`لا يمكن حساب سعر الكرتون للمنتج ${pName}`, {
+                            productId: pid,
+                            unitPrice,
+                            cartonFactor,
+                            invoice: invRef
+                        });
+                        return;
+                    }
+                }
+
+                // ===== منطق حساب البونص المحسّن =====
+                let bonusPct = 0;
+                let tier = "لا يوجد";
+                let badge = "badge-r";
+
+                const premiumPrice = rule.premiumPrice || 0;
+                const premiumPct = rule.premiumPct || 2;
+                const basePrice = rule.basePrice || 0;
+                const basePct = rule.basePct || 1;
+
+                // تحقق من القيم المدخلة
+                if (premiumPrice === 0 && basePrice === 0) {
+                    logError(`لم يتم تعيين أسعار للمنتج ${pName}`, { 
+                        productId: pid, 
+                        invoice: invRef,
+                        sellCarton 
+                    });
+                    tier = "غير محدد";
+                    badge = "badge-r";
+                } else {
+                    // المنطق المحسّن: إذا كان السعر >= سعر التميز
+                    if (premiumPrice > 0 && sellCarton >= premiumPrice) {
+                        bonusPct = premiumPct;
+                        tier = "تميز";
+                        badge = "badge-p";
+                    } 
+                    // إذا كان السعر <= السعر الأساسي
+                    else if (basePrice > 0 && sellCarton <= basePrice) {
+                        bonusPct = basePct;
+                        tier = "أساسي";
+                        badge = "badge-b";
+                    }
+                    // إذا كان السعر بين الاثنين أو خارج النطاقين
+                    else {
+                        // إذا كان هناك سعر أساسي ولكن السعر أعلى منه
+                        if (basePrice > 0 && sellCarton > basePrice) {
+                            // إذا لم يصل لسعر التميز، نستخدم النسبة الأساسية
+                            bonusPct = basePct;
+                            tier = "أساسي";
+                            badge = "badge-b";
+                        } else {
+                            tier = "خارج النطاق";
+                            badge = "badge-r";
+                            logError(`سعر خارج النطاق المحدد للمنتج ${pName}`, {
+                                productId: pid,
+                                sellCarton,
+                                premiumPrice,
+                                basePrice,
+                                invoice: invRef
                             });
                         }
                     }
-                });
-            }
-
-            inv.line_items.forEach(item => {
-                if(item.sku === DEFERRED_SKU) return;
-                const pid = item.product_id;
-                const rule = productRules[pid] || {};
-                
-                const unifiedName = productsMap[pid] ? productsMap[pid].name : item.product_name;
-                const priceInclTax = parseFloat(item.unit_price) * (1 + (parseFloat(item.tax_percent || 0) / 100));
-
-                let multiplier = 1;
-                const isCarton = (item.unit_type_name || "").includes("كرتون");
-                if (!isCarton) {
-                    multiplier = unitsMap[item.unit_type] || parseFloat(rule.factor) || 1;
-                }
-                const cartonPrice = priceInclTax * multiplier;
-
-                const netQty = Math.max(0, parseFloat(item.quantity) - (invoiceReturns[pid] || 0));
-                
-                let pct = 0, tier = "أقل من الحد", badge = "badge-r";
-                if (rule.premiumPrice > 0 && cartonPrice >= rule.premiumPrice) {
-                    pct = rule.premiumPct || 2; tier = "تميز"; badge = "badge-p";
-                } else if (rule.basePrice > 0 && cartonPrice <= rule.basePrice) {
-                    pct = rule.basePct || 1; tier = "أساسي"; badge = "badge-b";
                 }
 
-                const bonusAmount = (priceInclTax * netQty * (foundPaymentInMonth ? paidRatio : 1)) * (pct / 100);
+                const bonus = (sellCarton * cartonQty * bonusPct) / 100;
 
-                const record = {
-                    ref: inv.reference, rep: inv.created_by, prod: unifiedName,
-                    qty: (netQty * (foundPaymentInMonth ? paidRatio : 1)).toFixed(1),
-                    sellCarton: cartonPrice, tier, badge, pct, bonus: bonusAmount,
-                    totalSales: priceInclTax * netQty * (foundPaymentInMonth ? paidRatio : 1),
-                    date: finalPayDate
+                // التحقق من حجب البونص للمندوب
+                const tr = targetRules[rep] || {};
+                const isBlocked = tr.blk === true;
+
+                const entry = {
+                    rep, ref: invRef, prod: pName, qty: cartonQty.toFixed(2),
+                    sellCarton, totalSales: sellCarton * cartonQty,
+                    tier, pct: bonusPct, bonus: isBlocked ? 0 : bonus,
+                    date: payDate, badge, isBlocked
                 };
 
-                if (foundPaymentInMonth && bonusAmount > 0) computed.push(record);
-                else if (isPending) suspended.push(record);
+                // تصنيف حسب حالة السداد
+                if(inv.status === "Paid" && payDate) {
+                    const [py, pm] = payDate.split('-');
+                    if(py === year && pm === mon) {
+                        computed.push(entry);
+                    }
+                } else {
+                    suspended.push({...entry, date: issueDate});
+                }
             });
         });
-        renderUI();
+
+        console.log(`✓ تم معالجة ${computed.length} سطر محصل، ${suspended.length} سطر معلق`);
     }
 
     async function exportExcel() {
         const month = document.getElementById('targetMonth').value;
-        if(!computed.length) return alert("لا توجد بيانات بونص مستحقة لتصديرها!");
+        if(!computed.length) return alert("لا توجد بيانات محصلة للتصدير.");
         
         const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet(`بونص ${month}`);
-
+        const sheet = workbook.addWorksheet('البونص المستحق');
+        
         sheet.columns = [
             { header: 'المندوب', key: 'rep', width: 20 },
-            { header: 'المرجع', key: 'ref', width: 12 },
-            { header: 'المنتج', key: 'prod', width: 35 },
-            { header: 'الكمية', key: 'qty', width: 10 },
+            { header: 'المرجع', key: 'ref', width: 15 },
+            { header: 'المنتج', key: 'prod', width: 30 },
+            { header: 'الكمية', key: 'qty', width: 12 },
             { header: 'سعر الكرتون', key: 'price', width: 15 },
             { header: 'الفئة', key: 'tier', width: 12 },
-            { header: 'البونص', key: 'bonus', width: 15 },
-            { header: 'تاريخ السداد', key: 'date', width: 15 }
+            { header: 'النسبة %', key: 'pct', width: 10 },
+            { header: 'البونص', key: 'bonus', width: 12 },
+            { header: 'التاريخ', key: 'date', width: 15 }
         ];
+        
+        const headerRow = sheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+        
+        const grouped = {};
+        computed.forEach(d => {
+            if(!grouped[d.rep]) grouped[d.rep] = [];
+            grouped[d.rep].push(d);
+        });
 
-        sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
-        sheet.getRow(1).alignment = { horizontal: 'center' };
-
-        const reps = [...new Set(computed.map(i => i.rep))];
-        reps.forEach(repName => {
-            let repTotal = 0;
-            computed.filter(i => i.rep === repName).forEach(data => {
-                repTotal += data.bonus;
-                sheet.addRow({
+        Object.keys(grouped).sort().forEach(repName => {
+            const repData = grouped[repName];
+            const repTotal = repData.reduce((sum, d) => sum + d.bonus, 0);
+            
+            repData.forEach(data => {
+                const row = sheet.addRow({
                     rep: data.rep, ref: data.ref, prod: data.prod, qty: data.qty,
-                    price: data.sellCarton.toFixed(2), tier: data.tier,
+                    price: data.sellCarton.toFixed(2), tier: data.tier, pct: data.pct,
                     bonus: data.bonus.toFixed(2), date: data.date
                 });
+                
+                // تلوين حسب الفئة
+                if(data.tier === "تميز") {
+                    row.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
+                } else if(data.tier === "أساسي") {
+                    row.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+                } else {
+                    row.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8D7DA' } };
+                }
             });
+            
+            // سطر الإجمالي
             const totalRow = sheet.addRow({ prod: `إجمالي المندوب: ${repName}`, bonus: repTotal.toFixed(2) });
             totalRow.font = { bold: true };
             totalRow.getCell('prod').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } };
@@ -313,8 +469,10 @@
         
         let totalSales = 0, totalBonus = 0;
         computed.filter(d => filter === 'all' || d.rep === filter).forEach(r => {
-            totalSales += r.totalSales; totalBonus += r.bonus;
-            mainTbody.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td style="font-size:0.9em">${r.prod}</td><td>${r.qty}</td><td>${r.sellCarton.toFixed(2)}</td><td><span class="badge ${r.badge}">${r.tier}</span></td><td>${r.pct}%</td><td style="font-weight:bold">${r.bonus.toFixed(2)}</td><td>${r.date}</td></tr>`;
+            totalSales += r.totalSales; 
+            totalBonus += r.bonus;
+            const blockedText = r.isBlocked ? ' <small style="color:#c0392b">(محجوب)</small>' : '';
+            mainTbody.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}${blockedText}</td><td style="font-size:0.9em">${r.prod}</td><td>${r.qty}</td><td>${r.sellCarton.toFixed(2)}</td><td><span class="badge ${r.badge}">${r.tier}</span></td><td>${r.pct}%</td><td style="font-weight:bold">${r.bonus.toFixed(2)}</td><td>${r.date}</td></tr>`;
         });
         document.getElementById('stat-sales').innerText = totalSales.toLocaleString();
         document.getElementById('stat-bonus').innerText = totalBonus.toLocaleString();
@@ -330,14 +488,24 @@
         
         renderProductRules();
         renderTargetTable();
+        updateErrorDisplay();
     }
 
     function renderProductRules() {
         const tbody = document.getElementById('prodRows');
         tbody.innerHTML = '';
-        Object.keys(productsMap).sort().forEach(pid => {
+        Object.keys(productsMap).sort((a, b) => {
+            return productsMap[a].name.localeCompare(productsMap[b].name, 'ar');
+        }).forEach(pid => {
             const rule = productRules[pid] || {};
-            tbody.innerHTML += `<tr><td>${productsMap[pid].name}</td><td><input type="number" class="tbl-input" id="f_${pid}" value="${rule.factor||0}"></td><td><input type="number" class="tbl-input" id="pp_${pid}" value="${rule.premiumPrice||0}"></td><td><input type="number" class="tbl-input" id="ppct_${pid}" value="${rule.premiumPct||2}"></td><td><input type="number" class="tbl-input" id="bp_${pid}" value="${rule.basePrice||0}"></td><td><input type="number" class="tbl-input" id="bpct_${pid}" value="${rule.basePct||1}"></td></tr>`;
+            tbody.innerHTML += `<tr>
+                <td>${productsMap[pid].name}</td>
+                <td><input type="number" class="tbl-input" id="f_${pid}" value="${rule.factor||0}"></td>
+                <td><input type="number" class="tbl-input" id="pp_${pid}" value="${rule.premiumPrice||0}"></td>
+                <td><input type="number" step="0.1" class="tbl-input" id="ppct_${pid}" value="${rule.premiumPct||2}"></td>
+                <td><input type="number" class="tbl-input" id="bp_${pid}" value="${rule.basePrice||0}"></td>
+                <td><input type="number" step="0.1" class="tbl-input" id="bpct_${pid}" value="${rule.basePct||1}"></td>
+            </tr>`;
         });
     }
 
@@ -350,68 +518,101 @@
             const currentSales = computed.filter(d => d.rep === rep).reduce((a, b) => a + b.totalSales, 0);
             const isAchieved = currentSales >= (tr.amt || 0);
             if(isAchieved && tr.rwd > 0) totalReward += tr.rwd;
-            tbody.innerHTML += `<tr><td>${rep}</td><td>${currentSales.toLocaleString()}</td><td><input type="number" class="tbl-input" id="ta_${rep}" value="${tr.amt||0}"></td><td><input type="number" class="tbl-input" id="tr_${rep}" value="${tr.rwd||0}"></td><td><input type="checkbox" id="tk_${rep}" ${tr.blk?'checked':''}></td><td>${isAchieved ? '<b style="color:green">تم التحقيق</b>' : '<span style="color:red">لم يحقق</span>'}</td></tr>`;
+
+            tbody.innerHTML += `<tr>
+                <td>${rep}</td>
+                <td>${currentSales.toLocaleString()}</td>
+                <td><input type="number" class="tbl-input" id="ta_${rep}" value="${tr.amt||0}"></td>
+                <td><input type="number" class="tbl-input" id="tr_${rep}" value="${tr.rwd||0}"></td>
+                <td><input type="checkbox" id="tk_${rep}" ${tr.blk?'checked':''}></td>
+                <td>${isAchieved ? '<b style="color:green">تم التحقيق</b>' : '<span style="color:red">لم يحقق</span>'}</td>
+            </tr>`;
         });
         document.getElementById('stat-target-reward').innerText = totalReward.toLocaleString();
     }
 
     function applySmartRules(force=false) {
-        const auto = [{ keys: ["ورق كاشير", "80*70"], pp: 69, bp: 68 }, { keys: ["A4"], pp: 58, bp: 57 }, { keys: ["رول تاريخ"], pp: 75, bp: 74 }];
+        const auto = [
+            { keys: ["ورق كاشير", "80*70", "80x70"], pp: 69, bp: 68 },
+            { keys: ["a4", "ايه4"], pp: 58, bp: 57 },
+            { keys: ["رول تاريخ"], pp: 75, bp: 74 }
+        ];
         Object.keys(productsMap).forEach(pid => {
-            if(!force && productRules[pid]) return;
+            if(!force && productRules[pid] && productRules[pid].premiumPrice) return;
             const name = productsMap[pid].name.toLowerCase();
             for(let a of auto) {
                 if(a.keys.some(k => name.includes(k.toLowerCase()))) {
-                    productRules[pid] = { factor: 0, premiumPrice: a.pp, premiumPct: 2, basePrice: a.bp, basePct: 1 };
+                    productRules[pid] = { 
+                        factor: productRules[pid]?.factor || 0, 
+                        premiumPrice: a.pp, 
+                        premiumPct: 2, 
+                        basePrice: a.bp, 
+                        basePct: 1 
+                    };
                     break;
                 }
             }
         });
-        localStorage.setItem('pRules_v49', JSON.stringify(productRules));
+        localStorage.setItem('pRules_v36', JSON.stringify(productRules));
     }
 
     function saveProductRules() {
         Object.keys(productsMap).forEach(pid => {
             productRules[pid] = {
-                factor: parseFloat(document.getElementById(`f_${pid}`).value),
-                premiumPrice: parseFloat(document.getElementById(`pp_${pid}`).value),
-                premiumPct: parseFloat(document.getElementById(`ppct_${pid}`).value),
-                basePrice: parseFloat(document.getElementById(`bp_${pid}`).value),
-                basePct: parseFloat(document.getElementById(`bpct_${pid}`).value)
+                factor: parseFloat(document.getElementById(`f_${pid}`).value) || 0,
+                premiumPrice: parseFloat(document.getElementById(`pp_${pid}`).value) || 0,
+                premiumPct: parseFloat(document.getElementById(`ppct_${pid}`).value) || 2,
+                basePrice: parseFloat(document.getElementById(`bp_${pid}`).value) || 0,
+                basePct: parseFloat(document.getElementById(`bpct_${pid}`).value) || 1
             };
         });
-        localStorage.setItem('pRules_v49', JSON.stringify(productRules));
-        processLogic(); alert("تم حفظ إعدادات الأسعار والتحويل.");
+        localStorage.setItem('pRules_v36', JSON.stringify(productRules));
+        processLogic(); 
+        renderUI();
+        alert("تم حفظ إعدادات الأسعار والتحويل.");
     }
 
     function saveTargetRules() {
         creators.forEach(rep => {
             targetRules[rep] = {
-                amt: parseFloat(document.getElementById(`ta_${rep}`).value),
-                rwd: parseFloat(document.getElementById(`tr_${rep}`).value),
+                amt: parseFloat(document.getElementById(`ta_${rep}`).value) || 0,
+                rwd: parseFloat(document.getElementById(`tr_${rep}`).value) || 0,
                 blk: document.getElementById(`tk_${rep}`).checked
             };
         });
-        localStorage.setItem('tRules_v49', JSON.stringify(targetRules));
-        processLogic(); alert("تم حفظ الأهداف.");
+        localStorage.setItem('tRules_v36', JSON.stringify(targetRules));
+        processLogic(); 
+        renderUI();
+        alert("تم حفظ الأهداف.");
     }
 
     function exportBackup() {
-        const b = new Blob([JSON.stringify({pRules: productRules, tRules: targetRules})], {type: 'application/json'});
-        saveAs(b, "Bonus_System_Backup.json");
+        const b = new Blob([JSON.stringify({pRules: productRules, tRules: targetRules}, null, 2)], {type: 'application/json'});
+        saveAs(b, "Bonus_System_Backup_v36.json");
     }
 
     function importBackup(e) {
         const reader = new FileReader();
         reader.onload = x => {
-            const d = JSON.parse(x.target.result);
-            productRules = d.pRules || {}; targetRules = d.tRules || {};
-            localStorage.setItem('pRules_v49', JSON.stringify(productRules));
-            localStorage.setItem('tRules_v49', JSON.stringify(targetRules));
-            processLogic(); alert("تم استيراد البيانات بنجاح.");
+            try {
+                const d = JSON.parse(x.target.result);
+                productRules = d.pRules || {}; 
+                targetRules = d.tRules || {};
+                localStorage.setItem('pRules_v36', JSON.stringify(productRules));
+                localStorage.setItem('tRules_v36', JSON.stringify(targetRules));
+                processLogic(); 
+                renderUI();
+                alert("تم استيراد البيانات بنجاح.");
+            } catch(err) {
+                alert("خطأ في قراءة الملف: " + err.message);
+                logError("فشل استيراد النسخة الاحتياطية", { error: err.message });
+            }
         };
         reader.readAsText(e.target.files[0]);
     }
+
+    // تهيئة أولية
+    document.getElementById('targetMonth').value = new Date().toISOString().slice(0, 7);
 </script>
 </body>
 </html>
