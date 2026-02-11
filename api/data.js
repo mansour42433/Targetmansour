@@ -13,7 +13,8 @@ export default async function handler(req, res) {
     };
 
     const type = req.query.type || 'all';
-    const months = parseInt(req.query.months) || 1;
+    // الجلب التلقائي لـ 4 أشهر حسب طلبك
+    const months = 4; 
 
     const endDate = new Date();
     const startDate = new Date();
@@ -22,7 +23,7 @@ export default async function handler(req, res) {
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
 
-    async function fetchAllPages(baseUrl, maxPages = 20) {
+    async function fetchAllPages(baseUrl, maxPages = 30) {
         let allItems = [];
         let page = 1;
         let hasMore = true;
@@ -36,10 +37,9 @@ export default async function handler(req, res) {
                 
                 const data = await response.json();
                 
-                // ✅ التعديل الجوهري هنا: البحث الذكي عن مصفوفة البيانات وتجاهل الـ Meta
+                // البحث الذكي عن مصفوفة البيانات (لتجاوز قسم meta)
                 let items = [];
                 for (const key in data) {
-                    // نبحث عن أول مفتاح يحتوي على مصفوفة (Array) لأنها هي البيانات الحقيقية
                     if (Array.isArray(data[key])) {
                         items = data[key];
                         break;
@@ -60,6 +60,7 @@ export default async function handler(req, res) {
         return allItems;
     }
 
+    // الروابط لجلب الفواتير (من تاريخ الإنشاء لتغطية الفواتير القديمة التي دُفعت هذا الشهر)
     const invoicesUrl = `https://api.qoyod.com/2.0/invoices?q[issue_date_gteq]=${startDateStr}&q[issue_date_lteq]=${endDateStr}&q[s]=issue_date%20desc&per_page=100`;
     const productsUrl = `https://api.qoyod.com/2.0/products?per_page=100`;
     const unitsUrl = `https://api.qoyod.com/2.0/measurements?per_page=100`; 
