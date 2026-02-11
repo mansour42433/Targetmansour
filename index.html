@@ -86,22 +86,38 @@
         <button class="tab" onclick="switchTab(3)"><i class="fas fa-cog"></i> الإعدادات</button>
     </div>
 
-    <!-- تبويب البونص المستحق -->
     <div class="content active">
         <div class="toolbar">
             <div>
-                <label><i class="fas fa-calendar"></i> شهر التحصيل</label>
+                <label><i class="fas fa-calendar"></i> شهر التحصيل (للحساب)</label>
                 <input type="month" id="targetMonth" style="width:180px;">
             </div>
             <div>
                 <label><i class="fas fa-user"></i> المندوب</label>
-                <select id="repFilter" onchange="filterData()" style="width:200px;">
+                <select id="repFilter" onchange="filterData()" style="width:160px;">
                     <option value="all">الكل</option>
+                </select>
+            </div>
+            <div>
+                <label><i class="fas fa-history"></i> جلب الفواتير السابقة لـ</label>
+                <select id="fetchMonths" style="width:130px;">
+                    <option value="1">شهر واحد</option>
+                    <option value="2">شهران</option>
+                    <option value="3">3 أشهر</option>
+                    <option value="4" selected>4 أشهر</option>
+                    <option value="6">6 أشهر</option>
+                </select>
+            </div>
+            <div>
+                <label><i class="fas fa-cogs"></i> طريقة الجلب</label>
+                <select id="fetchMethod" style="width:220px;">
+                    <option value="chunks">أجزاء متتالية (موصى به - يمنع الانقطاع)</option>
+                    <option value="all">دفعة واحدة (للسرعة)</option>
                 </select>
             </div>
             <div style="margin-top:22px;">
                 <button class="btn btn-primary" onclick="loadData()" id="loadBtn">
-                    <i class="fas fa-sync-alt"></i> تحميل البيانات
+                    <i class="fas fa-sync-alt"></i> بدء الجلب
                 </button>
             </div>
             <div style="margin-top:22px;">
@@ -109,6 +125,10 @@
                     <i class="fas fa-file-excel"></i> تصدير إكسل
                 </button>
             </div>
+        </div>
+        
+        <div id="loadingStatus" style="display: none; margin-bottom: 20px; font-weight: bold; color: var(--acc); background: #e8f4f8; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #bee5eb;">
+            <i class="fas fa-spinner fa-spin"></i> <span id="statusText">جاري التحضير...</span>
         </div>
 
         <div class="stats">
@@ -129,7 +149,6 @@
         <div id="bonusTable"></div>
     </div>
 
-    <!-- تبويب الفواتير المستبعدة -->
     <div class="content">
         <div class="alert alert-info">
             <i class="fas fa-info-circle"></i>
@@ -152,7 +171,6 @@
         <div id="excludedTable"></div>
     </div>
 
-    <!-- تبويب إعدادات الأسعار -->
     <div class="content">
         <div class="alert alert-info">
             <i class="fas fa-lightbulb"></i>
@@ -172,12 +190,11 @@
         <div id="settingsTable"></div>
     </div>
 
-    <!-- تبويب الإعدادات العامة -->
     <div class="content">
         <div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle"></i>
             <div>
-                <strong>تنبيه:</strong> النظام يسحب الفواتير من آخر 4 أشهر. الفواتير تدخل البونص حسب تاريخ الدفع وليس تاريخ الإنشاء.
+                <strong>تنبيه:</strong> النظام يسحب الفواتير للفترة المحددة. الفواتير تدخل البونص حسب تاريخ الدفع وليس تاريخ الإنشاء.
             </div>
         </div>
 
@@ -197,9 +214,9 @@
         <div style="background:#f8f9fa; padding:20px; border-radius:8px; margin-top:20px;">
             <h3 style="margin-bottom:15px;"><i class="fas fa-info-circle"></i> معلومات النظام</h3>
             <table style="width:auto;">
-                <tr><td style="padding:8px; font-weight:600;">الإصدار:</td><td>1.0 النهائي</td></tr>
+                <tr><td style="padding:8px; font-weight:600;">الإصدار:</td><td>2.0 الاحترافي (نظام الأجزاء)</td></tr>
                 <tr><td style="padding:8px; font-weight:600;">آخر تحديث:</td><td>فبراير 2026</td></tr>
-                <tr><td style="padding:8px; font-weight:600;">نطاق السحب:</td><td>آخر 4 أشهر</td></tr>
+                <tr><td style="padding:8px; font-weight:600;">آلية الجلب:</td><td>متعدد المهام لتجنب الحظر</td></tr>
                 <tr><td style="padding:8px; font-weight:600;">معيار الدخول:</td><td>تاريخ الدفع</td></tr>
             </table>
         </div>
@@ -225,34 +242,84 @@ function switchTab(index) {
     });
 }
 
+// ✅ دالة الجلب الجديدة المتطورة بالكامل
 async function loadData() {
     const btn = document.getElementById('loadBtn');
-    const month = document.getElementById('targetMonth').value;
+    const targetMonth = document.getElementById('targetMonth').value;
+    const fetchMonths = document.getElementById('fetchMonths').value;
+    const method = document.getElementById('fetchMethod').value;
+    const statusDiv = document.getElementById('loadingStatus');
+    const statusText = document.getElementById('statusText');
     
-    if (!month) {
+    if (!targetMonth) {
         alert('⚠️ يرجى اختيار شهر التحصيل');
         return;
     }
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
+    statusDiv.style.display = 'block';
 
     try {
-        const res = await fetch('/api/qoyod-data');
-        if (!res.ok) throw new Error('فشل تحميل البيانات');
+        let finalData = {};
+
+        if (method === 'chunks') {
+            // -- الطريقة الذكية: جلب مجزأ لتجنب ضغط السيرفر (Timeout) --
+            statusText.innerText = "جاري جلب قائمة المنتجات... (1/4)";
+            const prodRes = await fetch(`/api/qoyod-data?type=products`);
+            const productsList = (await prodRes.json()).data;
+            
+            let productsMap = {};
+            productsList.forEach(p => {
+                productsMap[p.id] = { name: p.name_ar || p.name_en, sku: p.sku || "", id: p.id };
+            });
+
+            statusText.innerText = "جاري جلب وحدات القياس... (2/4)";
+            const unitsRes = await fetch(`/api/qoyod-data?type=units`);
+            const unitsList = (await unitsRes.json()).data;
+
+            statusText.innerText = `جاري جلب الفواتير لآخر ${fetchMonths} أشهر... (3/4)`;
+            const invRes = await fetch(`/api/qoyod-data?type=invoices&months=${fetchMonths}`);
+            const invoicesList = (await invRes.json()).data;
+
+            statusText.innerText = `جاري جلب المرتجعات لآخر ${fetchMonths} أشهر... (4/4)`;
+            const retRes = await fetch(`/api/qoyod-data?type=returns&months=${fetchMonths}`);
+            const returnsList = (await retRes.json()).data;
+
+            finalData = {
+                success: true,
+                productsMap: productsMap,
+                product_units: unitsList,
+                invoices: invoicesList,
+                credit_notes: returnsList
+            };
+
+        } else {
+            // -- الطريقة التقليدية: جلب دفعة واحدة --
+            statusText.innerText = `جاري جلب كافة البيانات لآخر ${fetchMonths} أشهر دفعة واحدة... برجاء الانتظار`;
+            const res = await fetch(`/api/qoyod-data?type=all&months=${fetchMonths}`);
+            finalData = await res.json();
+            
+            if (!finalData.success) {
+                throw new Error("فشل الجلب دفعة واحدة، يرجى المحاولة باستخدام خيار الأجزاء المتتالية.");
+            }
+        }
+
+        statusText.innerText = "✅ اكتمل الجلب بنجاح! جاري معالجة البيانات...";
         
-        const data = await res.json();
-        processData(data, month);
+        processData(finalData, targetMonth);
         renderAll();
-        
+
+        setTimeout(() => { statusDiv.style.display = 'none'; }, 3500);
+
     } catch (error) {
-        alert('❌ خطأ: ' + error.message);
+        console.error("خطأ:", error);
+        statusText.innerHTML = `<span style="color:red;"><i class="fas fa-exclamation-triangle"></i> حدث خطأ: ${error.message} (ينصح بتحديث الصفحة واستخدام طريقة الأجزاء المتتالية)</span>`;
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحميل البيانات';
     }
 }
 
+// ✅ دالة المعالجة مع تصحيح خطأ المنتجات غير المسعرة
 function processData(data, targetMonth) {
     allData = [];
     excludedData = [];
@@ -263,7 +330,6 @@ function processData(data, targetMonth) {
     const units = {};
     (data.product_units || []).forEach(u => units[u.id] = u.name_ar || u.name_en);
     
-    // بناء خريطة الإرجاعات
     const returns = {};
     (data.credit_notes || []).forEach(cn => {
         const ref = cn.invoice_reference;
@@ -282,7 +348,6 @@ function processData(data, targetMonth) {
         
         reps.add(rep);
 
-        // معالجة كل منتج في الفاتورة
         (inv.inventory_items || []).forEach(item => {
             const productId = item.product_id;
             if (!products[productId]) return;
@@ -293,7 +358,6 @@ function processData(data, targetMonth) {
             let quantity = parseFloat(item.quantity) || 0;
             const unitPrice = parseFloat(item.unit_price) || 0;
 
-            // خصم الإرجاعات
             (returns[invRef] || []).forEach(cn => {
                 (cn.inventory_items || []).forEach(ci => {
                     if (ci.product_id === productId && ci.unit_type === unitType) {
@@ -304,7 +368,6 @@ function processData(data, targetMonth) {
 
             if (quantity <= 0) return;
 
-            // تحويل للكرتون
             const isCarton = unitName.toLowerCase().includes('كرتون') || unitName.toLowerCase().includes('carton');
             let cartonQty = quantity;
             let cartonPrice = unitPrice;
@@ -315,11 +378,12 @@ function processData(data, targetMonth) {
                     cartonQty = quantity / factor;
                     cartonPrice = unitPrice * factor;
                 } else {
-                    return; // تخطي إذا لم يكن هناك معامل تحويل
+                    // ✅ الإصلاح: عدم تجاوز المنتج، بل إظهاره بالجدول ليتم التنبيه لتسعيره
+                    cartonQty = quantity;
+                    cartonPrice = unitPrice;
                 }
             }
 
-            // حساب البونص لهذا المنتج
             const threshold = settings[productId]?.threshold || 0;
             let bonusRate = 0;
             let tier = 'لا يوجد';
@@ -352,7 +416,6 @@ function processData(data, targetMonth) {
                 status
             };
 
-            // تصنيف: مدفوعة في الشهر المطلوب أم مستبعدة
             if (status === 'Paid' && paymentDate) {
                 const [payYear, payMon] = paymentDate.split('-');
                 if (payYear === targetYear && payMon === targetMon) {
@@ -504,7 +567,7 @@ function renderSettings() {
     const container = document.getElementById('settingsTable');
     
     if (Object.keys(products).length === 0) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>لا توجد منتجات</p></div>';
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>لا توجد منتجات (قم بجلب البيانات أولاً)</p></div>';
         return;
     }
 
@@ -576,11 +639,14 @@ function saveSettings() {
     
     // إعادة معالجة البيانات
     if (allData.length > 0 || excludedData.length > 0) {
-        const month = document.getElementById('targetMonth').value;
-        loadData();
+        const targetMonth = document.getElementById('targetMonth').value;
+        processData({ productsMap: products, invoices: [], product_units: [], credit_notes: [] }, targetMonth); 
+        // الأفضل أن يقوم المستخدم بضغط زر تحميل البيانات مرة أخرى 
+        // لتطبيق الإعدادات الجديدة على الفواتير المجلوبة مسبقاً
+        alert('✅ تم حفظ الإعدادات بنجاح. يرجى الضغط على زر "بدء الجلب" مجدداً لتطبيقها على الحسابات.');
+    } else {
+        alert('✅ تم حفظ الإعدادات بنجاح');
     }
-    
-    alert('✅ تم حفظ الإعدادات بنجاح');
 }
 
 async function exportToExcel() {
