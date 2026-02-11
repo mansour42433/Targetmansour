@@ -6,37 +6,36 @@ export default async function handler(req, res) {
     const headers = { "API-KEY": API_KEY, "Content-Type": "application/json" };
     const type = req.query.type;
 
-    // ✅ ضبط الفترة لتكون 3 أشهر فقط كما طلبت
-    const months = 3; 
+    // تحديد النطاق: 3 أشهر من تاريخ الإنشاء لضمان جلب الفواتير القديمة التي سُددت الآن
     const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - months);
+    startDate.setMonth(startDate.getMonth() - 3);
     const dateStr = startDate.toISOString().split('T')[0];
 
-    async function fetchPages(endpoint, key) {
-        let items = [];
-        let page = 1;
-        while(page <= 20) { 
+    async function fetchAllPages(endpoint, key) {
+        let allItems = [];
+        for (let page = 1; page <= 5; page++) { // جلب 5 صفحات (500 سجل) لضمان الشمولية
             const url = `https://api.qoyod.com/2.0/${endpoint}${endpoint.includes('?')?'&':'?'}page=${page}&per_page=100`;
-            const r = await fetch(url, { headers });
-            if(!r.ok) break;
-            const d = await r.json();
-            const data = d[key] || [];
-            if(data.length === 0) break;
-            items = items.concat(data);
-            page++;
+            const response = await fetch(url, { headers });
+            if (!response.ok) break;
+            const data = await response.json();
+            const items = data[key] || [];
+            if (items.length === 0) break;
+            allItems = allItems.concat(items);
         }
-        return items;
+        return allItems;
     }
 
     try {
-        if (type === 'products') return res.json({ success: true, data: await fetchPages('products', 'products') });
-        if (type === 'units') return res.json({ success: true, data: await fetchPages('product_units', 'product_units') });
+        if (type === 'products') return res.json({ success: true, data: await fetchAllPages('products', 'products') });
+        if (type === 'units') return res.json({ success: true, data: await fetchAllPages('product_units', 'product_units') });
         if (type === 'invoices') {
             const query = `q[issue_date_gteq]=${dateStr}&q[s]=issue_date+desc`;
-            return res.json({ success: true, data: await fetchPages(`invoices?${query}`, 'invoices') });
+            return res.json({ success: true, data: await fetchAllPages(`invoices?${query}`, 'invoices') });
         }
-        if (type === 'returns') return res.json({ success: true, data: await fetchPages(`credit_notes?q[issue_date_gteq]=${dateStr}`, 'credit_notes') });
+        if (type === 'returns') return res.json({ success: true, data: await fetchAllPages('credit_notes', 'credit_notes') });
         
         return res.status(400).json({ error: "Invalid type" });
-    } catch (e) { return res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
 }
