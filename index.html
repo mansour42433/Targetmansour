@@ -216,7 +216,7 @@
             <table style="width:auto;">
                 <tr><td style="padding:8px; font-weight:600;">الإصدار:</td><td>2.0 الاحترافي (نظام الأجزاء)</td></tr>
                 <tr><td style="padding:8px; font-weight:600;">آخر تحديث:</td><td>فبراير 2026</td></tr>
-                <tr><td style="padding:8px; font-weight:600;">آلية الجلب:</td><td>متعدد المهام لتجنب الحظر</td></tr>
+                <tr><td style="padding:8px; font-weight:600;">مسار البيانات:</td><td>/api/data</td></tr>
                 <tr><td style="padding:8px; font-weight:600;">معيار الدخول:</td><td>تاريخ الدفع</td></tr>
             </table>
         </div>
@@ -242,7 +242,7 @@ function switchTab(index) {
     });
 }
 
-// ✅ دالة الجلب الجديدة المتطورة بالكامل
+// ✅ دالة الجلب المحدثة بمسار /api/data الجديد
 async function loadData() {
     const btn = document.getElementById('loadBtn');
     const targetMonth = document.getElementById('targetMonth').value;
@@ -263,9 +263,9 @@ async function loadData() {
         let finalData = {};
 
         if (method === 'chunks') {
-            // -- الطريقة الذكية: جلب مجزأ لتجنب ضغط السيرفر (Timeout) --
             statusText.innerText = "جاري جلب قائمة المنتجات... (1/4)";
-            const prodRes = await fetch(`/api/qoyod-data?type=products`);
+            const prodRes = await fetch(`/api/data?type=products`);
+            if (!prodRes.ok) throw new Error("الملف /api/data غير موجود، تأكد من رفعه على Vercel");
             const productsList = (await prodRes.json()).data;
             
             let productsMap = {};
@@ -274,15 +274,15 @@ async function loadData() {
             });
 
             statusText.innerText = "جاري جلب وحدات القياس... (2/4)";
-            const unitsRes = await fetch(`/api/qoyod-data?type=units`);
+            const unitsRes = await fetch(`/api/data?type=units`);
             const unitsList = (await unitsRes.json()).data;
 
             statusText.innerText = `جاري جلب الفواتير لآخر ${fetchMonths} أشهر... (3/4)`;
-            const invRes = await fetch(`/api/qoyod-data?type=invoices&months=${fetchMonths}`);
+            const invRes = await fetch(`/api/data?type=invoices&months=${fetchMonths}`);
             const invoicesList = (await invRes.json()).data;
 
             statusText.innerText = `جاري جلب المرتجعات لآخر ${fetchMonths} أشهر... (4/4)`;
-            const retRes = await fetch(`/api/qoyod-data?type=returns&months=${fetchMonths}`);
+            const retRes = await fetch(`/api/data?type=returns&months=${fetchMonths}`);
             const returnsList = (await retRes.json()).data;
 
             finalData = {
@@ -294,9 +294,9 @@ async function loadData() {
             };
 
         } else {
-            // -- الطريقة التقليدية: جلب دفعة واحدة --
             statusText.innerText = `جاري جلب كافة البيانات لآخر ${fetchMonths} أشهر دفعة واحدة... برجاء الانتظار`;
-            const res = await fetch(`/api/qoyod-data?type=all&months=${fetchMonths}`);
+            const res = await fetch(`/api/data?type=all&months=${fetchMonths}`);
+            if (!res.ok) throw new Error("الملف /api/data غير موجود، تأكد من رفعه على Vercel");
             finalData = await res.json();
             
             if (!finalData.success) {
@@ -313,13 +313,13 @@ async function loadData() {
 
     } catch (error) {
         console.error("خطأ:", error);
-        statusText.innerHTML = `<span style="color:red;"><i class="fas fa-exclamation-triangle"></i> حدث خطأ: ${error.message} (ينصح بتحديث الصفحة واستخدام طريقة الأجزاء المتتالية)</span>`;
+        statusText.innerHTML = `<span style="color:red;"><i class="fas fa-exclamation-triangle"></i> حدث خطأ: ${error.message}</span>`;
     } finally {
         btn.disabled = false;
     }
 }
 
-// ✅ دالة المعالجة مع تصحيح خطأ المنتجات غير المسعرة
+// دالة المعالجة 
 function processData(data, targetMonth) {
     allData = [];
     excludedData = [];
@@ -378,7 +378,6 @@ function processData(data, targetMonth) {
                     cartonQty = quantity / factor;
                     cartonPrice = unitPrice * factor;
                 } else {
-                    // ✅ الإصلاح: عدم تجاوز المنتج، بل إظهاره بالجدول ليتم التنبيه لتسعيره
                     cartonQty = quantity;
                     cartonPrice = unitPrice;
                 }
@@ -637,12 +636,9 @@ function saveSettings() {
 
     localStorage.setItem('bonusSettings', JSON.stringify(settings));
     
-    // إعادة معالجة البيانات
     if (allData.length > 0 || excludedData.length > 0) {
         const targetMonth = document.getElementById('targetMonth').value;
         processData({ productsMap: products, invoices: [], product_units: [], credit_notes: [] }, targetMonth); 
-        // الأفضل أن يقوم المستخدم بضغط زر تحميل البيانات مرة أخرى 
-        // لتطبيق الإعدادات الجديدة على الفواتير المجلوبة مسبقاً
         alert('✅ تم حفظ الإعدادات بنجاح. يرجى الضغط على زر "بدء الجلب" مجدداً لتطبيقها على الحسابات.');
     } else {
         alert('✅ تم حفظ الإعدادات بنجاح');
@@ -661,10 +657,8 @@ async function exportToExcel() {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('البونص');
 
-    // تحديد البيانات حسب الفلتر
     const dataToExport = filter === 'all' ? allData : allData.filter(d => d.rep === filter);
 
-    // العناوين
     sheet.columns = [
         { header: 'المندوب', key: 'rep', width: 20 },
         { header: 'رقم الفاتورة', key: 'invRef', width: 15 },
@@ -677,13 +671,11 @@ async function exportToExcel() {
         { header: 'تاريخ الدفع', key: 'paymentDate', width: 15 }
     ];
 
-    // تنسيق الرأس
     const headerRow = sheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
     headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
 
-    // تجميع حسب المندوب إذا كان الفلتر "الكل"
     if (filter === 'all') {
         const byRep = {};
         dataToExport.forEach(d => {
@@ -697,8 +689,6 @@ async function exportToExcel() {
 
             repData.forEach(row => {
                 const dataRow = sheet.addRow(row);
-                
-                // تلوين حسب الفئة
                 if (row.bonusRate === 2) {
                     dataRow.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
                 } else if (row.bonusRate === 1) {
@@ -706,7 +696,6 @@ async function exportToExcel() {
                 }
             });
 
-            // سطر الإجمالي
             const totalRow = sheet.addRow({
                 productName: `إجمالي ${rep}`,
                 bonus: repTotal.toFixed(2)
@@ -715,13 +704,11 @@ async function exportToExcel() {
             totalRow.getCell('productName').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } };
             totalRow.getCell('bonus').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
             
-            sheet.addRow([]); // سطر فارغ
+            sheet.addRow([]);
         });
     } else {
-        // تصدير لمندوب واحد فقط
         dataToExport.forEach(row => {
             const dataRow = sheet.addRow(row);
-            
             if (row.bonusRate === 2) {
                 dataRow.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
             } else if (row.bonusRate === 1) {
