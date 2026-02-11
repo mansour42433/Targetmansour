@@ -216,7 +216,7 @@
             <table style="width:auto;">
                 <tr><td style="padding:8px; font-weight:600;">الإصدار:</td><td>2.0 الاحترافي (نظام الأجزاء)</td></tr>
                 <tr><td style="padding:8px; font-weight:600;">آخر تحديث:</td><td>فبراير 2026</td></tr>
-                <tr><td style="padding:8px; font-weight:600;">مسار البيانات:</td><td>/api/data</td></tr>
+                <tr><td style="padding:8px; font-weight:600;">مسار البيانات:</td><td>/api/data.js</td></tr>
                 <tr><td style="padding:8px; font-weight:600;">معيار الدخول:</td><td>تاريخ الدفع</td></tr>
             </table>
         </div>
@@ -242,7 +242,7 @@ function switchTab(index) {
     });
 }
 
-// ✅ دالة الجلب المحدثة بمسار /api/data الجديد
+// ✅ دالة الجلب المحدثة بمسار /api/data.js مع الامتداد
 async function loadData() {
     const btn = document.getElementById('loadBtn');
     const targetMonth = document.getElementById('targetMonth').value;
@@ -264,8 +264,8 @@ async function loadData() {
 
         if (method === 'chunks') {
             statusText.innerText = "جاري جلب قائمة المنتجات... (1/4)";
-            const prodRes = await fetch(`/api/data?type=products`);
-            if (!prodRes.ok) throw new Error("الملف /api/data غير موجود، تأكد من رفعه على Vercel");
+            const prodRes = await fetch(`/api/data.js?type=products`);
+            if (!prodRes.ok) throw new Error("الملف /api/data.js غير موجود، تأكد من رفعه على Vercel");
             const productsList = (await prodRes.json()).data;
             
             let productsMap = {};
@@ -274,15 +274,15 @@ async function loadData() {
             });
 
             statusText.innerText = "جاري جلب وحدات القياس... (2/4)";
-            const unitsRes = await fetch(`/api/data?type=units`);
+            const unitsRes = await fetch(`/api/data.js?type=units`);
             const unitsList = (await unitsRes.json()).data;
 
             statusText.innerText = `جاري جلب الفواتير لآخر ${fetchMonths} أشهر... (3/4)`;
-            const invRes = await fetch(`/api/data?type=invoices&months=${fetchMonths}`);
+            const invRes = await fetch(`/api/data.js?type=invoices&months=${fetchMonths}`);
             const invoicesList = (await invRes.json()).data;
 
             statusText.innerText = `جاري جلب المرتجعات لآخر ${fetchMonths} أشهر... (4/4)`;
-            const retRes = await fetch(`/api/data?type=returns&months=${fetchMonths}`);
+            const retRes = await fetch(`/api/data.js?type=returns&months=${fetchMonths}`);
             const returnsList = (await retRes.json()).data;
 
             finalData = {
@@ -295,8 +295,8 @@ async function loadData() {
 
         } else {
             statusText.innerText = `جاري جلب كافة البيانات لآخر ${fetchMonths} أشهر دفعة واحدة... برجاء الانتظار`;
-            const res = await fetch(`/api/data?type=all&months=${fetchMonths}`);
-            if (!res.ok) throw new Error("الملف /api/data غير موجود، تأكد من رفعه على Vercel");
+            const res = await fetch(`/api/data.js?type=all&months=${fetchMonths}`);
+            if (!res.ok) throw new Error("الملف /api/data.js غير موجود، تأكد من رفعه على Vercel");
             finalData = await res.json();
             
             if (!finalData.success) {
