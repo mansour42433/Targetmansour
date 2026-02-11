@@ -1,10 +1,10 @@
-// api/qoyod-data.js
+// api/data.js
 
 export default async function handler(req, res) {
     const API_KEY = process.env.QOYOD_API_KEY;
 
     if (!API_KEY) {
-        return res.status(500).json({ error: "API Key missing", message: "تأكد من إعدادات Vercel" });
+        return res.status(500).json({ error: "API Key missing" });
     }
 
     const headers = {
@@ -12,11 +12,9 @@ export default async function handler(req, res) {
         "Content-Type": "application/json"
     };
 
-    // استلام الخيارات من الواجهة الأمامية
-    const type = req.query.type || 'all'; // نوع البيانات (invoices, products, units, returns, all)
-    const months = parseInt(req.query.months) || 1; // عدد الأشهر (الافتراضي 1)
+    const type = req.query.type || 'all';
+    const months = parseInt(req.query.months) || 1;
 
-    // حساب التواريخ بناءً على اختيار المستخدم
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - months);
@@ -24,7 +22,6 @@ export default async function handler(req, res) {
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
 
-    // دالة جلب الصفحات
     async function fetchAllPages(baseUrl, maxPages = 20) {
         let allItems = [];
         let page = 1;
@@ -38,10 +35,18 @@ export default async function handler(req, res) {
                 if (!response.ok) { hasMore = false; break; }
                 
                 const data = await response.json();
-                const keys = Object.keys(data);
-                const items = data[keys[0]] || [];
+                
+                // ✅ التعديل الجوهري هنا: البحث الذكي عن مصفوفة البيانات وتجاهل الـ Meta
+                let items = [];
+                for (const key in data) {
+                    // نبحث عن أول مفتاح يحتوي على مصفوفة (Array) لأنها هي البيانات الحقيقية
+                    if (Array.isArray(data[key])) {
+                        items = data[key];
+                        break;
+                    }
+                }
 
-                if (items.length === 0) {
+                if (!items || items.length === 0) {
                     hasMore = false;
                 } else {
                     allItems = allItems.concat(items);
@@ -55,20 +60,17 @@ export default async function handler(req, res) {
         return allItems;
     }
 
-    // الروابط
     const invoicesUrl = `https://api.qoyod.com/2.0/invoices?q[issue_date_gteq]=${startDateStr}&q[issue_date_lteq]=${endDateStr}&q[s]=issue_date%20desc&per_page=100`;
     const productsUrl = `https://api.qoyod.com/2.0/products?per_page=100`;
     const unitsUrl = `https://api.qoyod.com/2.0/measurements?per_page=100`; 
     const creditNotesUrl = `https://api.qoyod.com/2.0/credit_notes?q[issue_date_gteq]=${startDateStr}&q[s]=issue_date%20desc&per_page=100`;
 
     try {
-        // --- وضع جلب الأجزاء (المتتالي والآمن من الانقطاع) ---
         if (type === 'products') return res.status(200).json({ success: true, data: await fetchAllPages(productsUrl) });
         if (type === 'units') return res.status(200).json({ success: true, data: await fetchAllPages(unitsUrl) });
         if (type === 'invoices') return res.status(200).json({ success: true, data: await fetchAllPages(invoicesUrl) });
         if (type === 'returns') return res.status(200).json({ success: true, data: await fetchAllPages(creditNotesUrl) });
 
-        // --- وضع جلب دفعة واحدة (إذا اختار المستخدم ذلك) ---
         if (type === 'all') {
             const invoices = await fetchAllPages(invoicesUrl);
             const products = await fetchAllPages(productsUrl);
