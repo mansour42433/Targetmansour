@@ -1,4 +1,5 @@
 // ملف: api/qoyod-data.js
+// API محدث ومصحح للعمل مع قيود
 
 export default async function handler(req, res) {
     const API_KEY = process.env.QOYOD_API_KEY;
@@ -6,13 +7,13 @@ export default async function handler(req, res) {
     if (!API_KEY) {
         return res.status(500).json({ 
             error: "API Key missing",
-            message: "يرجى إضافة QOYOD_API_KEY في ملف .env.local"
+            message: "يرجى إضافة QOYOD_API_KEY في إعدادات Vercel"
         });
     }
 
+    // Headers حسب توثيق قيود
     const headers = {
-        "API-KEY": API_KEY,
-        "Content-Type": "application/json"
+        "API-KEY": API_KEY
     };
 
     try {
@@ -21,13 +22,14 @@ export default async function handler(req, res) {
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 4);
         
-        const startDateStr = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const startDateStr = startDate.toISOString().split('T')[0];
         const endDateStr = endDate.toISOString().split('T')[0];
 
-        console.log(`جلب الفواتير من ${startDateStr} إلى ${endDateStr}`);
+        console.log(`جلب البيانات من ${startDateStr} إلى ${endDateStr}`);
 
+        // URLs حسب توثيق قيود API v2.0
         const urls = [
-            // جلب جميع الفواتير (Paid و Partially Paid و Overdue) من آخر 4 أشهر
+            // جلب جميع الفواتير (بدون فلترة Status - سنفلتر في الكود)
             `https://api.qoyod.com/2.0/invoices?q[issue_date_gteq]=${startDateStr}&q[issue_date_lteq]=${endDateStr}&q[s]=issue_date+desc&limit=5000`,
             
             // المنتجات
@@ -40,14 +42,21 @@ export default async function handler(req, res) {
             `https://api.qoyod.com/2.0/credit_notes?q[issue_date_gteq]=${startDateStr}&q[s]=issue_date+desc&limit=2000`
         ];
 
+        // تنفيذ الطلبات
         const results = await Promise.allSettled(
-            urls.map(url => fetch(url, { headers }).then(async r => {
-                if (!r.ok) {
-                    const errorText = await r.text();
-                    throw new Error(`HTTP ${r.status}: ${errorText}`);
-                }
-                return r;
-            }))
+            urls.map(url => 
+                fetch(url, { 
+                    method: 'GET',
+                    headers: headers,
+                    redirect: 'follow'
+                }).then(async response => {
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    }
+                    return response;
+                })
+            )
         );
 
         const data = {
@@ -61,6 +70,8 @@ export default async function handler(req, res) {
                 productsCount: 0,
                 unitsCount: 0,
                 creditNotesCount: 0,
+                paidCount: 0,
+                unpaidCount: 0,
                 dateRange: {
                     start: startDateStr,
                     end: endDateStr
@@ -70,15 +81,23 @@ export default async function handler(req, res) {
 
         // معالجة الفواتير
         if (results[0].status === "fulfilled" && results[0].value.ok) {
-            const invData = await results[0].value.json();
-            data.invoices = invData.invoices || [];
-            data.stats.invoicesCount = data.invoices.length;
-            
-            // إحصائيات حسب الحالة
-            data.stats.paidCount = data.invoices.filter(i => i.status === 'Paid').length;
-            data.stats.unpaidCount = data.invoices.filter(i => i.status !== 'Paid').length;
-            
-            console.log(`✓ تم جلب ${data.stats.invoicesCount} فاتورة (مدفوعة: ${data.stats.paidCount}، غير مدفوعة: ${data.stats.unpaidCount})`);
+            try {
+                const invData = await results[0].value.json();
+                data.invoices = invData.invoices || [];
+                data.stats.invoicesCount = data.invoices.length;
+                
+                // إحصائيات حسب الحالة
+                data.stats.paidCount = data.invoices.filter(i => i.status === 'Paid').length;
+                data.stats.unpaidCount = data.invoices.filter(i => i.status !== 'Paid').length;
+                
+                console.log(`✓ تم جلب ${data.stats.invoicesCount} فاتورة (مدفوعة: ${data.stats.paidCount})`);
+            } catch (parseError) {
+                console.error("خطأ في معالجة الفواتير:", parseError);
+                data.errors.push({
+                    source: "invoices",
+                    message: "فشل في معالجة بيانات الفواتير: " + parseError.message
+                });
+            }
         } else {
             data.errors.push({
                 source: "invoices",
@@ -88,16 +107,24 @@ export default async function handler(req, res) {
 
         // معالجة المنتجات
         if (results[1].status === "fulfilled" && results[1].value.ok) {
-            const pData = await results[1].value.json();
-            (pData.products || []).forEach(p => {
-                data.productsMap[p.id] = {
-                    name: p.name_ar || p.name_en || `منتج ${p.id}`,
-                    sku: p.sku || "",
-                    id: p.id
-                };
-            });
-            data.stats.productsCount = Object.keys(data.productsMap).length;
-            console.log(`✓ تم جلب ${data.stats.productsCount} منتج`);
+            try {
+                const pData = await results[1].value.json();
+                (pData.products || []).forEach(p => {
+                    data.productsMap[p.id] = {
+                        name: p.name_ar || p.name_en || `منتج ${p.id}`,
+                        sku: p.sku || "",
+                        id: p.id
+                    };
+                });
+                data.stats.productsCount = Object.keys(data.productsMap).length;
+                console.log(`✓ تم جلب ${data.stats.productsCount} منتج`);
+            } catch (parseError) {
+                console.error("خطأ في معالجة المنتجات:", parseError);
+                data.errors.push({
+                    source: "products",
+                    message: "فشل في معالجة بيانات المنتجات"
+                });
+            }
         } else {
             data.errors.push({
                 source: "products",
@@ -107,10 +134,18 @@ export default async function handler(req, res) {
 
         // معالجة الوحدات
         if (results[2].status === "fulfilled" && results[2].value.ok) {
-            const uData = await results[2].value.json();
-            data.product_units = uData.product_units || [];
-            data.stats.unitsCount = data.product_units.length;
-            console.log(`✓ تم جلب ${data.stats.unitsCount} وحدة قياس`);
+            try {
+                const uData = await results[2].value.json();
+                data.product_units = uData.product_units || [];
+                data.stats.unitsCount = data.product_units.length;
+                console.log(`✓ تم جلب ${data.stats.unitsCount} وحدة قياس`);
+            } catch (parseError) {
+                console.error("خطأ في معالجة الوحدات:", parseError);
+                data.errors.push({
+                    source: "product_units",
+                    message: "فشل في معالجة وحدات القياس"
+                });
+            }
         } else {
             data.errors.push({
                 source: "product_units",
@@ -120,10 +155,18 @@ export default async function handler(req, res) {
 
         // معالجة إشعارات الدائن (المرتجعات)
         if (results[3].status === "fulfilled" && results[3].value.ok) {
-            const cData = await results[3].value.json();
-            data.credit_notes = cData.credit_notes || [];
-            data.stats.creditNotesCount = data.credit_notes.length;
-            console.log(`✓ تم جلب ${data.stats.creditNotesCount} إشعار دائن`);
+            try {
+                const cData = await results[3].value.json();
+                data.credit_notes = cData.credit_notes || [];
+                data.stats.creditNotesCount = data.credit_notes.length;
+                console.log(`✓ تم جلب ${data.stats.creditNotesCount} إشعار دائن`);
+            } catch (parseError) {
+                console.error("خطأ في معالجة الإشعارات:", parseError);
+                data.errors.push({
+                    source: "credit_notes",
+                    message: "فشل في معالجة إشعارات الدائن"
+                });
+            }
         } else {
             data.errors.push({
                 source: "credit_notes",
@@ -133,21 +176,30 @@ export default async function handler(req, res) {
 
         // إذا فشلت جميع الطلبات
         if (data.errors.length === 4) {
+            console.error("فشلت جميع الطلبات:", data.errors);
             return res.status(500).json({
                 error: "فشل في جلب جميع البيانات من Qoyod API",
-                details: data.errors
+                details: data.errors,
+                message: "تأكد من صحة مفتاح API وأنه نشط"
             });
         }
 
-        // إضافة ملخص
+        // إذا نجح واحد على الأقل
+        if (data.invoices.length === 0 && data.errors.length > 0) {
+            console.warn("تحذير: لم يتم جلب فواتير، قد يكون هناك مشكلة");
+        }
+
+        // ملخص النتائج
         data.summary = {
             success: true,
-            message: `تم جلب البيانات بنجاح من ${startDateStr} إلى ${endDateStr}`,
+            message: `تم جلب البيانات من ${startDateStr} إلى ${endDateStr}`,
             totalInvoices: data.stats.invoicesCount,
             paidInvoices: data.stats.paidCount,
             unpaidInvoices: data.stats.unpaidCount,
             totalProducts: data.stats.productsCount,
-            totalReturns: data.stats.creditNotesCount
+            totalReturns: data.stats.creditNotesCount,
+            hasErrors: data.errors.length > 0,
+            errorCount: data.errors.length
         };
 
         return res.status(200).json(data);
@@ -155,8 +207,10 @@ export default async function handler(req, res) {
     } catch (err) {
         console.error("خطأ غير متوقع:", err);
         return res.status(500).json({ 
-            error: err.message,
-            message: "حدث خطأ غير متوقع أثناء جلب البيانات"
+            error: "خطأ في الخادم",
+            message: err.message,
+            details: "حدث خطأ غير متوقع أثناء جلب البيانات. تأكد من صحة مفتاح API.",
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
         });
     }
 }
