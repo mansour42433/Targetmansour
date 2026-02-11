@@ -2,617 +2,710 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام العمولات المتكامل V36 - محسّن</title>
+    <title>نظام حساب البونص - النسخة النهائية</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
-        :root{--p:#2c3e50; --acc:#2980b9; --bg:#f4f6f9; --g:#27ae60; --r:#c0392b;}
+        :root{--p:#2c3e50; --acc:#2980b9; --bg:#f4f6f9; --g:#27ae60; --r:#c0392b; --orange:#e67e22;}
+        *{margin:0; padding:0; box-sizing:border-box;}
         body{font-family:'Cairo', sans-serif; background:var(--bg); padding:20px; color:var(--p); line-height:1.6;}
-        .box{background:#fff; border-radius:15px; max-width:1600px; margin:auto; box-shadow:0 4px 25px rgba(0,0,0,0.1); overflow:hidden;}
-        .tabs-header{display:flex; background:var(--p); color:#fff; flex-wrap:wrap;}
-        .tab-btn{padding:15px 25px; cursor:pointer; background:transparent; border:none; color:#ccc; font-weight:bold; font-family:'Cairo'; transition:0.3s; flex:1; text-align:center;}
-        .tab-btn.active{background:#fff; color:var(--p); border-top:4px solid var(--acc);}
-        .tab-content{display:none; padding:25px;}
-        .tab-content.active{display:block;}
-        .stats{display:flex; gap:15px; margin-bottom:20px; flex-wrap:wrap;}
-        .card{flex:1; background:var(--p); color:#fff; padding:20px; border-radius:12px; text-align:center; min-width:220px;}
-        .card-val{font-size:1.8em; font-weight:bold; margin-top:5px;}
-        table{width:100%; border-collapse:collapse; margin-top:15px; background:#fff;}
-        th{background:#f8f9fa; padding:15px; text-align:right; border-bottom:2px solid #ddd; position:sticky; top:0; z-index:10;}
-        td{padding:12px 15px; border-bottom:1px solid #eee; vertical-align:middle;}
-        .badge{padding:5px 12px; border-radius:20px; font-size:0.85em; font-weight:bold; display:inline-block;}
-        .badge-p{background:#d4edda; color:#155724; border:1px solid #c3e6cb;}
-        .badge-b{background:#fff3cd; color:#856404; border:1px solid #ffeeba;}
-        .badge-r{background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;}
-        .btn{padding:12px 22px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:'Cairo'; transition:0.3s; display:inline-flex; align-items:center; gap:8px;}
-        .btn-acc{background:var(--acc); color:#fff;}
-        .btn-g{background:var(--g); color:#fff;}
-        .tbl-input{width:80px; text-align:center; padding:6px; border:1px solid #ccc; border-radius:5px;}
-        .debug-bar{background:#ebf5fb; padding:10px 20px; font-size:0.85em; border-bottom:1px solid #d6eaf8; color:#2e86c1;}
-        .error-log{background:#f8d7da; color:#721c24; padding:10px; border-radius:8px; margin:10px 0; font-size:0.9em; max-height:200px; overflow-y:auto;}
+        .container{background:#fff; border-radius:15px; max-width:1800px; margin:auto; box-shadow:0 4px 25px rgba(0,0,0,0.1); overflow:hidden;}
+        
+        .tabs{display:flex; background:var(--p); color:#fff; flex-wrap:wrap;}
+        .tab{padding:15px 20px; cursor:pointer; background:transparent; border:none; color:#ccc; font-weight:bold; font-size:0.95em; transition:0.3s; flex:1; text-align:center; min-width:150px;}
+        .tab.active{background:#fff; color:var(--p); border-top:4px solid var(--acc);}
+        .tab:hover:not(.active){background:rgba(255,255,255,0.1);}
+        
+        .content{display:none; padding:25px;}
+        .content.active{display:block;}
+        
+        .toolbar{display:flex; gap:12px; margin-bottom:25px; background:#f8f9fa; padding:20px; border-radius:12px; flex-wrap:wrap; align-items:flex-end;}
+        .toolbar > div{flex:0 0 auto;}
+        .toolbar label{display:block; margin-bottom:5px; font-weight:600; color:#555;}
+        .toolbar input, .toolbar select{padding:10px; border-radius:6px; border:1px solid #ccc; font-family:'Cairo';}
+        
+        .stats{display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:15px; margin-bottom:25px;}
+        .stat-card{background:linear-gradient(135deg, var(--p) 0%, #34495e 100%); color:#fff; padding:22px; border-radius:12px; text-align:center; box-shadow:0 3px 10px rgba(0,0,0,0.15);}
+        .stat-card h3{font-size:0.95em; opacity:0.9; margin-bottom:8px;}
+        .stat-val{font-size:2em; font-weight:bold; margin-top:5px;}
+        .stat-card.accent{background:linear-gradient(135deg, var(--acc) 0%, #3498db 100%);}
+        .stat-card.success{background:linear-gradient(135deg, var(--g) 0%, #2ecc71 100%);}
+        .stat-card.warning{background:linear-gradient(135deg, var(--orange) 0%, #f39c12 100%);}
+        
+        .btn{padding:11px 20px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:'Cairo'; transition:0.3s; display:inline-flex; align-items:center; gap:8px; font-size:0.95em;}
+        .btn-primary{background:var(--acc); color:#fff;}
+        .btn-success{background:var(--g); color:#fff;}
+        .btn-warning{background:var(--orange); color:#fff;}
+        .btn:hover{transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.2);}
+        .btn:disabled{opacity:0.6; cursor:not-allowed; transform:none;}
+        
+        table{width:100%; border-collapse:collapse; margin-top:15px; background:#fff; font-size:0.92em;}
+        th{background:#f8f9fa; padding:14px 12px; text-align:right; border-bottom:2px solid #dee2e6; font-weight:700; position:sticky; top:0; z-index:10;}
+        td{padding:12px; border-bottom:1px solid #eee; vertical-align:middle;}
+        tr:hover{background:#f8f9fa;}
+        
+        .badge{padding:6px 12px; border-radius:20px; font-size:0.85em; font-weight:600; display:inline-block;}
+        .badge-premium{background:#d4edda; color:#155724; border:1px solid #c3e6cb;}
+        .badge-base{background:#fff3cd; color:#856404; border:1px solid #ffeeba;}
+        .badge-none{background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;}
+        
+        .input-table{width:90px; text-align:center; padding:7px; border:1px solid #ccc; border-radius:5px; font-family:'Cairo';}
+        
+        .alert{padding:15px 20px; border-radius:8px; margin:15px 0; display:flex; align-items:center; gap:12px;}
+        .alert i{font-size:1.3em;}
+        .alert-info{background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb;}
+        .alert-success{background:#d4edda; color:#155724; border:1px solid #c3e6cb;}
+        .alert-warning{background:#fff3cd; color:#856404; border:1px solid #ffeeba;}
+        .alert-error{background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;}
+        
+        .loading{text-align:center; padding:40px; color:#666;}
+        .loading i{font-size:2em; animation:spin 1s linear infinite;}
+        @keyframes spin{to{transform:rotate(360deg);}}
+        
+        .empty-state{text-align:center; padding:60px 20px; color:#999;}
+        .empty-state i{font-size:4em; margin-bottom:15px; opacity:0.3;}
+        
+        @media (max-width: 768px){
+            .toolbar{flex-direction:column;}
+            .toolbar > div{width:100%;}
+            .stats{grid-template-columns:1fr;}
+            table{font-size:0.85em;}
+            th, td{padding:8px 6px;}
+        }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <div class="tabs-header">
-        <button class="tab-btn active" onclick="switchTab('main')"><i class="fas fa-money-bill-wave"></i> البونص المستحق</button>
-        <button class="tab-btn" onclick="switchTab('suspended')"><i class="fas fa-clock"></i> المعلق (تحت التحصيل)</button>
-        <button class="tab-btn" onclick="switchTab('products')"><i class="fas fa-magic"></i> الأسعار والوحدات</button>
-        <button class="tab-btn" onclick="switchTab('targets')"><i class="fas fa-bullseye"></i> الأهداف والتارجت</button>
-        <button class="tab-btn" onclick="switchTab('backup')"><i class="fas fa-database"></i> الإعدادات</button>
-        <button class="tab-btn" onclick="switchTab('debug')"><i class="fas fa-bug"></i> سجل الأخطاء</button>
+<div class="container">
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab(0)"><i class="fas fa-money-bill-wave"></i> البونص المستحق</button>
+        <button class="tab" onclick="switchTab(1)"><i class="fas fa-times-circle"></i> الفواتير المستبعدة</button>
+        <button class="tab" onclick="switchTab(2)"><i class="fas fa-magic"></i> إعدادات الأسعار</button>
+        <button class="tab" onclick="switchTab(3)"><i class="fas fa-cog"></i> الإعدادات</button>
     </div>
 
-    <div id="debug-info" class="debug-bar" style="display:none;"></div>
-
-    <div id="tab-main" class="tab-content active">
-        <div style="display:flex; gap:15px; align-items:flex-end; margin-bottom:25px; background:#f8f9fa; padding:20px; border-radius:12px;">
-            <div><label>شهر التحصيل</label><br><input type="month" id="targetMonth" style="padding:10px; border-radius:6px; border:1px solid #ccc; width:180px;"></div>
-            <div><label>تصفية حسب المندوب</label><br><select id="creatorFilter" onchange="renderUI()" style="padding:10px; border-radius:6px; border:1px solid #ccc; width:220px;"></select></div>
-            <button class="btn btn-acc" onclick="fetchData()"><i class="fas fa-sync-alt"></i> تحديث وجلب</button>
-            <button class="btn btn-g" onclick="exportExcel()"><i class="fas fa-file-excel"></i> تصدير إكسيل ملون</button>
-        </div>
-
-        <div class="stats">
-            <div class="card"><h3>المبيعات المحصلة</h3><div id="stat-sales" class="card-val">0</div></div>
-            <div class="card" style="background:var(--acc)"><h3>إجمالي البونص</h3><div id="stat-bonus" class="card-val">0</div></div>
-            <div class="card" style="background:#e67e22"><h3>المكافأة (التارجت)</h3><div id="stat-target-reward" class="card-val">0</div></div>
-        </div>
-
-        <div style="overflow-x:auto;">
-            <table>
-                <thead>
-                    <tr><th>المرجع</th><th>المندوب</th><th>المنتج (موحد)</th><th>الكمية</th><th>سعر الكرتون</th><th>الفئة</th><th>النسبة</th><th>البونص</th><th>تاريخ السداد</th></tr>
-                </thead>
-                <tbody id="mainRows"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="tab-suspended" class="tab-content">
-        <div class="stats">
-            <div class="card" style="background:#7f8c8d; max-width:400px;"><h3>بونص متوقع (غير محصل)</h3><div id="stat-susp-bonus" class="card-val">0</div></div>
-        </div>
-        <table>
-            <thead><tr><th>المرجع</th><th>المندوب</th><th>المنتج</th><th>الكمية الصافية</th><th>تاريخ الفاتورة</th><th>البونص المتوقع</th></tr></thead>
-            <tbody id="suspRows"></tbody>
-        </table>
-    </div>
-
-    <div id="tab-products" class="tab-content">
-        <div style="display:flex; justify-content:space-between; margin-bottom:20px; align-items:center;">
-            <h3>إعدادات تسعير المنتجات ومعاملات التحويل</h3>
-            <div><button class="btn btn-acc" onclick="applySmartRules(true)">إعادة ضبط تلقائي</button> <button class="btn btn-g" onclick="saveProductRules()">حفظ الإعدادات</button></div>
-        </div>
-        <table>
-            <thead><tr><th>المنتج (الاسم العربي)</th><th>معامل الكرتون اليدوي</th><th>سعر التميز (>=)</th><th>نسبة %</th><th>السعر الأساسي (<=)</th><th>نسبة %</th></tr></thead>
-            <tbody id="prodRows"></tbody>
-        </table>
-    </div>
-
-    <div id="tab-targets" class="tab-content">
-        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-            <h3>أهداف المبيعات للمناديب</h3>
-            <button class="btn btn-g" onclick="saveTargetRules()">حفظ التارجت</button>
-        </div>
-        <table>
-            <thead><tr><th>المندوب</th><th>المبيعات الحالية</th><th>هدف المبيعات</th><th>المكافأة المقطوعة</th><th>حجب البونص؟</th><th>الحالة</th></tr></thead>
-            <tbody id="targetRows"></tbody>
-        </table>
-    </div>
-
-    <div id="tab-backup" class="tab-content">
-        <h3>النسخ الاحتياطي ونقل البيانات</h3>
-        <p>استخدم هذه الأزرار لنقل إعدادات الأسعار والأهداف من جهاز لآخر.</p>
-        <div style="display:flex; gap:10px;">
-            <button class="btn btn-acc" onclick="exportBackup()">تصدير إعدادات (JSON)</button>
-            <div style="position:relative; overflow:hidden; display:inline-block;">
-                <button class="btn btn-g">استيراد إعدادات</button>
-                <input type="file" id="importFile" onchange="importBackup(event)" style="position:absolute; left:0; top:0; opacity:0; cursor:pointer;">
+    <!-- تبويب البونص المستحق -->
+    <div class="content active">
+        <div class="toolbar">
+            <div>
+                <label><i class="fas fa-calendar"></i> شهر التحصيل</label>
+                <input type="month" id="targetMonth" style="width:180px;">
+            </div>
+            <div>
+                <label><i class="fas fa-user"></i> المندوب</label>
+                <select id="repFilter" onchange="filterData()" style="width:200px;">
+                    <option value="all">الكل</option>
+                </select>
+            </div>
+            <div style="margin-top:22px;">
+                <button class="btn btn-primary" onclick="loadData()" id="loadBtn">
+                    <i class="fas fa-sync-alt"></i> تحميل البيانات
+                </button>
+            </div>
+            <div style="margin-top:22px;">
+                <button class="btn btn-success" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> تصدير إكسل
+                </button>
             </div>
         </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <h3>عدد الفواتير</h3>
+                <div class="stat-val" id="stat-invoices">0</div>
+            </div>
+            <div class="stat-card accent">
+                <h3>إجمالي المبيعات</h3>
+                <div class="stat-val" id="stat-sales">0</div>
+            </div>
+            <div class="stat-card success">
+                <h3>إجمالي البونص</h3>
+                <div class="stat-val" id="stat-bonus">0</div>
+            </div>
+        </div>
+
+        <div id="bonusTable"></div>
     </div>
 
-    <div id="tab-debug" class="tab-content">
-        <h3>سجل الأخطاء والتحليل</h3>
-        <button class="btn btn-acc" onclick="clearErrorLog()"><i class="fas fa-trash"></i> مسح السجل</button>
-        <div id="error-log" class="error-log" style="margin-top:15px;"></div>
+    <!-- تبويب الفواتير المستبعدة -->
+    <div class="content">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <strong>الفواتير المستبعدة:</strong> تشمل الفواتير الآجلة التي لم تُدفع وأي فاتورة لم تُدفع في الشهر المحدد
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card warning">
+                <h3>عدد الفواتير المستبعدة</h3>
+                <div class="stat-val" id="stat-excluded">0</div>
+            </div>
+            <div class="stat-card warning">
+                <h3>بونص محتمل (إذا دُفعت)</h3>
+                <div class="stat-val" id="stat-potential">0</div>
+            </div>
+        </div>
+
+        <div id="excludedTable"></div>
+    </div>
+
+    <!-- تبويب إعدادات الأسعار -->
+    <div class="content">
+        <div class="alert alert-info">
+            <i class="fas fa-lightbulb"></i>
+            <div>
+                <strong>كيفية حساب البونص:</strong><br>
+                • إذا كان سعر الكرتون ≥ السعر المحدد → بونص 2%<br>
+                • إذا كان سعر الكرتون < السعر المحدد → بونص 1%
+            </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+            <button class="btn btn-success" onclick="saveSettings()">
+                <i class="fas fa-save"></i> حفظ الإعدادات
+            </button>
+        </div>
+
+        <div id="settingsTable"></div>
+    </div>
+
+    <!-- تبويب الإعدادات العامة -->
+    <div class="content">
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <strong>تنبيه:</strong> النظام يسحب الفواتير من آخر 4 أشهر. الفواتير تدخل البونص حسب تاريخ الدفع وليس تاريخ الإنشاء.
+            </div>
+        </div>
+
+        <div style="background:#f8f9fa; padding:20px; border-radius:8px; margin-top:20px;">
+            <h3 style="margin-bottom:15px;"><i class="fas fa-database"></i> النسخ الاحتياطي</h3>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="exportSettings()">
+                    <i class="fas fa-download"></i> تصدير الإعدادات
+                </button>
+                <label class="btn btn-success" style="margin:0;">
+                    <i class="fas fa-upload"></i> استيراد الإعدادات
+                    <input type="file" id="importFile" style="display:none;" onchange="importSettings(event)">
+                </label>
+            </div>
+        </div>
+
+        <div style="background:#f8f9fa; padding:20px; border-radius:8px; margin-top:20px;">
+            <h3 style="margin-bottom:15px;"><i class="fas fa-info-circle"></i> معلومات النظام</h3>
+            <table style="width:auto;">
+                <tr><td style="padding:8px; font-weight:600;">الإصدار:</td><td>1.0 النهائي</td></tr>
+                <tr><td style="padding:8px; font-weight:600;">آخر تحديث:</td><td>فبراير 2026</td></tr>
+                <tr><td style="padding:8px; font-weight:600;">نطاق السحب:</td><td>آخر 4 أشهر</td></tr>
+                <tr><td style="padding:8px; font-weight:600;">معيار الدخول:</td><td>تاريخ الدفع</td></tr>
+            </table>
+        </div>
     </div>
 </div>
 
 <script>
-    const DEFERRED_SKU = "754500950512";
-    let rawInvoices = [], productsMap = {}, unitsMap = {}, creators = [], creditNotesMap = {};
-    let computed = [], suspended = [];
-    let errorLog = [];
+let allData = [];
+let excludedData = [];
+let reps = [];
+let products = {};
+let settings = JSON.parse(localStorage.getItem('bonusSettings') || '{}');
 
-    // جلب الإعدادات من الذاكرة المحلية
-    let productRules = JSON.parse(localStorage.getItem('pRules_v36') || "{}");
-    let targetRules = JSON.parse(localStorage.getItem('tRules_v36') || "{}");
+// تهيئة التاريخ
+document.getElementById('targetMonth').value = new Date().toISOString().slice(0, 7);
 
-    function logError(message, data = {}) {
-        const timestamp = new Date().toLocaleString('ar-SA');
-        errorLog.push({ timestamp, message, data });
-        console.error(message, data);
-        updateErrorDisplay();
+function switchTab(index) {
+    const tabs = document.querySelectorAll('.tab');
+    const contents = document.querySelectorAll('.content');
+    tabs.forEach((t, i) => {
+        t.classList.toggle('active', i === index);
+        contents[i].classList.toggle('active', i === index);
+    });
+}
+
+async function loadData() {
+    const btn = document.getElementById('loadBtn');
+    const month = document.getElementById('targetMonth').value;
+    
+    if (!month) {
+        alert('⚠️ يرجى اختيار شهر التحصيل');
+        return;
     }
 
-    function updateErrorDisplay() {
-        const logDiv = document.getElementById('error-log');
-        if (!logDiv) return;
-        
-        if (errorLog.length === 0) {
-            logDiv.innerHTML = '<p style="color:#666; text-align:center;">لا توجد أخطاء مسجلة</p>';
-            return;
-        }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
 
-        logDiv.innerHTML = errorLog.map((log, idx) => `
-            <div style="border-bottom:1px solid #f5c6cb; padding:8px; margin-bottom:8px;">
-                <strong>#${idx + 1} - ${log.timestamp}</strong><br>
-                ${log.message}<br>
-                ${Object.keys(log.data).length > 0 ? '<small><pre>' + JSON.stringify(log.data, null, 2) + '</pre></small>' : ''}
+    try {
+        const res = await fetch('/api/qoyod-data');
+        if (!res.ok) throw new Error('فشل تحميل البيانات');
+        
+        const data = await res.json();
+        processData(data, month);
+        renderAll();
+        
+    } catch (error) {
+        alert('❌ خطأ: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحميل البيانات';
+    }
+}
+
+function processData(data, targetMonth) {
+    allData = [];
+    excludedData = [];
+    reps = new Set();
+    products = data.productsMap || {};
+    
+    const invoices = data.invoices || [];
+    const units = {};
+    (data.product_units || []).forEach(u => units[u.id] = u.name_ar || u.name_en);
+    
+    // بناء خريطة الإرجاعات
+    const returns = {};
+    (data.credit_notes || []).forEach(cn => {
+        const ref = cn.invoice_reference;
+        if (!ref) return;
+        returns[ref] = returns[ref] || [];
+        returns[ref].push(cn);
+    });
+
+    const [targetYear, targetMon] = targetMonth.split('-');
+
+    invoices.forEach(inv => {
+        const paymentDate = inv.payment_date;
+        const status = inv.status;
+        const rep = inv.creator || 'غير محدد';
+        const invRef = inv.reference || inv.id;
+        
+        reps.add(rep);
+
+        // معالجة كل منتج في الفاتورة
+        (inv.inventory_items || []).forEach(item => {
+            const productId = item.product_id;
+            if (!products[productId]) return;
+
+            const productName = products[productId].name;
+            const unitType = item.unit_type;
+            const unitName = units[unitType] || '';
+            let quantity = parseFloat(item.quantity) || 0;
+            const unitPrice = parseFloat(item.unit_price) || 0;
+
+            // خصم الإرجاعات
+            (returns[invRef] || []).forEach(cn => {
+                (cn.inventory_items || []).forEach(ci => {
+                    if (ci.product_id === productId && ci.unit_type === unitType) {
+                        quantity -= parseFloat(ci.quantity) || 0;
+                    }
+                });
+            });
+
+            if (quantity <= 0) return;
+
+            // تحويل للكرتون
+            const isCarton = unitName.toLowerCase().includes('كرتون') || unitName.toLowerCase().includes('carton');
+            let cartonQty = quantity;
+            let cartonPrice = unitPrice;
+
+            if (!isCarton) {
+                const factor = settings[productId]?.factor || 0;
+                if (factor > 0) {
+                    cartonQty = quantity / factor;
+                    cartonPrice = unitPrice * factor;
+                } else {
+                    return; // تخطي إذا لم يكن هناك معامل تحويل
+                }
+            }
+
+            // حساب البونص لهذا المنتج
+            const threshold = settings[productId]?.threshold || 0;
+            let bonusRate = 0;
+            let tier = 'لا يوجد';
+
+            if (threshold > 0) {
+                if (cartonPrice >= threshold) {
+                    bonusRate = 2;
+                    tier = 'تميز (2%)';
+                } else {
+                    bonusRate = 1;
+                    tier = 'أساسي (1%)';
+                }
+            }
+
+            const bonus = (cartonPrice * cartonQty * bonusRate) / 100;
+            const totalSales = cartonPrice * cartonQty;
+
+            const record = {
+                rep,
+                invRef,
+                productName,
+                cartonQty: cartonQty.toFixed(2),
+                cartonPrice: cartonPrice.toFixed(2),
+                totalSales: totalSales.toFixed(2),
+                tier,
+                bonusRate,
+                bonus: bonus.toFixed(2),
+                paymentDate: paymentDate || 'غير مدفوعة',
+                issueDate: inv.issue_date || '',
+                status
+            };
+
+            // تصنيف: مدفوعة في الشهر المطلوب أم مستبعدة
+            if (status === 'Paid' && paymentDate) {
+                const [payYear, payMon] = paymentDate.split('-');
+                if (payYear === targetYear && payMon === targetMon) {
+                    allData.push(record);
+                } else {
+                    excludedData.push({...record, reason: 'مدفوعة في شهر آخر'});
+                }
+            } else {
+                excludedData.push({...record, reason: status === 'Paid' ? 'لا يوجد تاريخ دفع' : 'غير مدفوعة'});
+            }
+        });
+    });
+
+    reps = Array.from(reps).sort();
+}
+
+function filterData() {
+    renderBonusTable();
+    renderExcludedTable();
+    updateStats();
+}
+
+function renderAll() {
+    updateRepFilter();
+    renderBonusTable();
+    renderExcludedTable();
+    renderSettings();
+    updateStats();
+}
+
+function updateRepFilter() {
+    const select = document.getElementById('repFilter');
+    const current = select.value;
+    select.innerHTML = '<option value="all">الكل</option>';
+    reps.forEach(r => {
+        select.innerHTML += `<option value="${r}">${r}</option>`;
+    });
+    select.value = current;
+}
+
+function renderBonusTable() {
+    const filter = document.getElementById('repFilter').value;
+    const filtered = filter === 'all' ? allData : allData.filter(d => d.rep === filter);
+
+    const container = document.getElementById('bonusTable');
+    
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>لا توجد فواتير مدفوعة في الشهر المحدد</p>
             </div>
-        `).reverse().join('');
+        `;
+        return;
     }
 
-    function clearErrorLog() {
-        errorLog = [];
-        updateErrorDisplay();
+    let html = `
+        <table>
+            <thead>
+                <tr>
+                    <th>المندوب</th>
+                    <th>رقم الفاتورة</th>
+                    <th>المنتج</th>
+                    <th>الكمية (كرتون)</th>
+                    <th>سعر الكرتون</th>
+                    <th>إجمالي المبيعات</th>
+                    <th>الفئة</th>
+                    <th>البونص</th>
+                    <th>تاريخ الدفع</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    filtered.forEach(row => {
+        const badge = row.bonusRate === 2 ? 'badge-premium' : (row.bonusRate === 1 ? 'badge-base' : 'badge-none');
+        html += `
+            <tr>
+                <td><strong>${row.rep}</strong></td>
+                <td>${row.invRef}</td>
+                <td>${row.productName}</td>
+                <td>${row.cartonQty}</td>
+                <td>${parseFloat(row.cartonPrice).toLocaleString()} ريال</td>
+                <td><strong>${parseFloat(row.totalSales).toLocaleString()} ريال</strong></td>
+                <td><span class="badge ${badge}">${row.tier}</span></td>
+                <td><strong style="color:var(--g);">${parseFloat(row.bonus).toLocaleString()} ريال</strong></td>
+                <td>${row.paymentDate}</td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function renderExcludedTable() {
+    const filter = document.getElementById('repFilter').value;
+    const filtered = filter === 'all' ? excludedData : excludedData.filter(d => d.rep === filter);
+
+    const container = document.getElementById('excludedTable');
+    
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-check-circle"></i>
+                <p>لا توجد فواتير مستبعدة</p>
+            </div>
+        `;
+        return;
     }
 
-    function switchTab(id) {
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('tab-' + id).classList.add('active');
-        event.currentTarget.classList.add('active');
+    let html = `
+        <table>
+            <thead>
+                <tr>
+                    <th>المندوب</th>
+                    <th>رقم الفاتورة</th>
+                    <th>المنتج</th>
+                    <th>الكمية</th>
+                    <th>سعر الكرتون</th>
+                    <th>البونص المحتمل</th>
+                    <th>سبب الاستبعاد</th>
+                    <th>تاريخ الإنشاء</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    filtered.forEach(row => {
+        html += `
+            <tr>
+                <td>${row.rep}</td>
+                <td>${row.invRef}</td>
+                <td>${row.productName}</td>
+                <td>${row.cartonQty}</td>
+                <td>${parseFloat(row.cartonPrice).toLocaleString()}</td>
+                <td style="color:#666;">${parseFloat(row.bonus).toLocaleString()} ريال</td>
+                <td><span class="badge badge-none">${row.reason}</span></td>
+                <td>${row.issueDate}</td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function renderSettings() {
+    const container = document.getElementById('settingsTable');
+    
+    if (Object.keys(products).length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>لا توجد منتجات</p></div>';
+        return;
     }
 
-    async function fetchData() {
-        const month = document.getElementById('targetMonth').value;
-        if(!month) return alert("يرجى تحديد الشهر المستهدف أولاً!");
-        const btn = document.querySelector('.btn-acc');
-        const dbg = document.getElementById('debug-info');
+    let html = `
+        <table>
+            <thead>
+                <tr>
+                    <th>المنتج</th>
+                    <th>معامل التحويل للكرتون</th>
+                    <th>السعر الأدنى للبونص 2%</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    Object.keys(products).sort((a, b) => 
+        products[a].name.localeCompare(products[b].name, 'ar')
+    ).forEach(pid => {
+        const s = settings[pid] || {};
+        html += `
+            <tr>
+                <td><strong>${products[pid].name}</strong></td>
+                <td>
+                    <input type="number" class="input-table" id="factor_${pid}" 
+                           value="${s.factor || 0}" min="0" step="1">
+                    <small style="color:#666; margin-right:5px;">وحدة/كرتون</small>
+                </td>
+                <td>
+                    <input type="number" class="input-table" id="threshold_${pid}" 
+                           value="${s.threshold || 0}" min="0" step="0.5">
+                    <small style="color:#666; margin-right:5px;">ريال</small>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function updateStats() {
+    const filter = document.getElementById('repFilter').value;
+    const filtered = filter === 'all' ? allData : allData.filter(d => d.rep === filter);
+    const filteredExcluded = filter === 'all' ? excludedData : excludedData.filter(d => d.rep === filter);
+
+    const totalSales = filtered.reduce((sum, d) => sum + parseFloat(d.totalSales), 0);
+    const totalBonus = filtered.reduce((sum, d) => sum + parseFloat(d.bonus), 0);
+    const potentialBonus = filteredExcluded.reduce((sum, d) => sum + parseFloat(d.bonus), 0);
+
+    document.getElementById('stat-invoices').textContent = filtered.length;
+    document.getElementById('stat-sales').textContent = totalSales.toLocaleString() + ' ريال';
+    document.getElementById('stat-bonus').textContent = totalBonus.toLocaleString() + ' ريال';
+    document.getElementById('stat-excluded').textContent = filteredExcluded.length;
+    document.getElementById('stat-potential').textContent = potentialBonus.toLocaleString() + ' ريال';
+}
+
+function saveSettings() {
+    Object.keys(products).forEach(pid => {
+        const factor = document.getElementById(`factor_${pid}`);
+        const threshold = document.getElementById(`threshold_${pid}`);
         
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
-        btn.disabled = true;
-        dbg.style.display = 'block';
-        dbg.innerText = 'جاري الاتصال بالخادم...';
+        settings[pid] = {
+            factor: parseFloat(factor.value) || 0,
+            threshold: parseFloat(threshold.value) || 0
+        };
+    });
 
-        try {
-            const res = await fetch('/api/qoyod-data');
-            if(!res.ok) throw new Error('فشل في جلب البيانات');
-            const data = await res.json();
+    localStorage.setItem('bonusSettings', JSON.stringify(settings));
+    
+    // إعادة معالجة البيانات
+    if (allData.length > 0 || excludedData.length > 0) {
+        const month = document.getElementById('targetMonth').value;
+        loadData();
+    }
+    
+    alert('✅ تم حفظ الإعدادات بنجاح');
+}
 
-            rawInvoices = data.invoices || [];
-            productsMap = data.productsMap || {};
-            unitsMap = {};
-            (data.product_units || []).forEach(u => unitsMap[u.id] = u.name_ar || u.name_en);
-
-            creditNotesMap = {};
-            (data.credit_notes || []).forEach(cn => {
-                const inv_ref = cn.invoice_reference;
-                if(!inv_ref) return;
-                creditNotesMap[inv_ref] = creditNotesMap[inv_ref] || [];
-                creditNotesMap[inv_ref].push(cn);
-            });
-
-            creators = [...new Set(rawInvoices.map(i => i.creator).filter(Boolean))].sort();
-            
-            dbg.innerText = `✓ تم جلب ${rawInvoices.length} فاتورة مدفوعة، ${Object.keys(productsMap).length} منتج، ${Object.keys(creditNotesMap).length} إشعار دائن`;
-            
-            applySmartRules(false);
-            processLogic();
-            updateFilterDropdown();
-            renderUI();
-
-        } catch(e) {
-            alert('خطأ: ' + e.message);
-            logError('خطأ في جلب البيانات', { error: e.message });
-            dbg.innerText = '⚠ خطأ: ' + e.message;
-        } finally {
-            btn.innerHTML = '<i class="fas fa-sync-alt"></i> تحديث وجلب';
-            btn.disabled = false;
-        }
+async function exportToExcel() {
+    const filter = document.getElementById('repFilter').value;
+    const month = document.getElementById('targetMonth').value;
+    
+    if (!allData.length) {
+        alert('⚠️ لا توجد بيانات للتصدير');
+        return;
     }
 
-    function processLogic() {
-        const month = document.getElementById('targetMonth').value;
-        if(!month) return;
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('البونص');
 
-        computed = [];
-        suspended = [];
-        const [year, mon] = month.split('-');
+    // تحديد البيانات حسب الفلتر
+    const dataToExport = filter === 'all' ? allData : allData.filter(d => d.rep === filter);
 
-        rawInvoices.forEach(inv => {
-            const items = inv.inventory_items || [];
-            const rep = inv.creator || "غير معروف";
-            const invRef = inv.reference || inv.id;
-            const payDate = inv.payment_date || "";
-            const issueDate = inv.issue_date || "";
+    // العناوين
+    sheet.columns = [
+        { header: 'المندوب', key: 'rep', width: 20 },
+        { header: 'رقم الفاتورة', key: 'invRef', width: 15 },
+        { header: 'المنتج', key: 'productName', width: 30 },
+        { header: 'الكمية', key: 'cartonQty', width: 12 },
+        { header: 'سعر الكرتون', key: 'cartonPrice', width: 15 },
+        { header: 'المبيعات', key: 'totalSales', width: 15 },
+        { header: 'الفئة', key: 'tier', width: 15 },
+        { header: 'البونص', key: 'bonus', width: 12 },
+        { header: 'تاريخ الدفع', key: 'paymentDate', width: 15 }
+    ];
 
-            items.forEach((it, idx) => {
-                const pid = it.product_id;
-                if(!pid || !productsMap[pid]) {
-                    logError(`منتج غير معروف في الفاتورة ${invRef}`, { productId: pid, item: it });
-                    return;
-                }
+    // تنسيق الرأس
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
+    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
 
-                const pName = productsMap[pid].name;
-                const sku = productsMap[pid].sku;
-
-                // تخطي المنتج المؤجل
-                if(sku === DEFERRED_SKU) return;
-
-                const sellUnit = it.unit_type;
-                const qtyRaw = parseFloat(it.quantity) || 0;
-                const unitPrice = parseFloat(it.unit_price) || 0;
-
-                let netQty = qtyRaw;
-                // خصم الإرجاعات
-                const returns = (creditNotesMap[invRef] || []).filter(cn => {
-                    const cnItems = cn.inventory_items || [];
-                    return cnItems.some(ci => ci.product_id == pid);
-                });
-
-                returns.forEach(cn => {
-                    (cn.inventory_items || []).forEach(ci => {
-                        if(ci.product_id == pid && ci.unit_type === sellUnit) {
-                            netQty -= parseFloat(ci.quantity) || 0;
-                        }
-                    });
-                });
-
-                if(netQty <= 0) return;
-
-                const rule = productRules[pid] || {};
-                let cartonFactor = rule.factor || 0;
-                let cartonQty = 0;
-
-                // تحويل الوحدة للكراتين إذا لم تكن "كرتون" بشكل مباشر
-                const unitNameLower = (unitsMap[sellUnit] || sellUnit || "").toLowerCase();
-                const isCarton = unitNameLower.includes("كرتون") || unitNameLower.includes("carton");
-
-                if(isCarton) {
-                    cartonQty = netQty;
-                } else {
-                    if(cartonFactor > 0) {
-                        cartonQty = netQty / cartonFactor;
-                    } else {
-                        logError(`معامل تحويل مفقود للمنتج ${pName}`, { 
-                            productId: pid, 
-                            unitType: sellUnit, 
-                            unitName: unitsMap[sellUnit],
-                            invoice: invRef 
-                        });
-                        return;
-                    }
-                }
-
-                // حساب سعر الكرتون
-                let sellCarton = 0;
-                if(isCarton) {
-                    sellCarton = unitPrice;
-                } else {
-                    if(cartonFactor > 0) {
-                        sellCarton = unitPrice * cartonFactor;
-                    } else {
-                        logError(`لا يمكن حساب سعر الكرتون للمنتج ${pName}`, {
-                            productId: pid,
-                            unitPrice,
-                            cartonFactor,
-                            invoice: invRef
-                        });
-                        return;
-                    }
-                }
-
-                // ===== منطق حساب البونص المحسّن =====
-                let bonusPct = 0;
-                let tier = "لا يوجد";
-                let badge = "badge-r";
-
-                const premiumPrice = rule.premiumPrice || 0;
-                const premiumPct = rule.premiumPct || 2;
-                const basePrice = rule.basePrice || 0;
-                const basePct = rule.basePct || 1;
-
-                // تحقق من القيم المدخلة
-                if (premiumPrice === 0 && basePrice === 0) {
-                    logError(`لم يتم تعيين أسعار للمنتج ${pName}`, { 
-                        productId: pid, 
-                        invoice: invRef,
-                        sellCarton 
-                    });
-                    tier = "غير محدد";
-                    badge = "badge-r";
-                } else {
-                    // المنطق المحسّن: إذا كان السعر >= سعر التميز
-                    if (premiumPrice > 0 && sellCarton >= premiumPrice) {
-                        bonusPct = premiumPct;
-                        tier = "تميز";
-                        badge = "badge-p";
-                    } 
-                    // إذا كان السعر <= السعر الأساسي
-                    else if (basePrice > 0 && sellCarton <= basePrice) {
-                        bonusPct = basePct;
-                        tier = "أساسي";
-                        badge = "badge-b";
-                    }
-                    // إذا كان السعر بين الاثنين أو خارج النطاقين
-                    else {
-                        // إذا كان هناك سعر أساسي ولكن السعر أعلى منه
-                        if (basePrice > 0 && sellCarton > basePrice) {
-                            // إذا لم يصل لسعر التميز، نستخدم النسبة الأساسية
-                            bonusPct = basePct;
-                            tier = "أساسي";
-                            badge = "badge-b";
-                        } else {
-                            tier = "خارج النطاق";
-                            badge = "badge-r";
-                            logError(`سعر خارج النطاق المحدد للمنتج ${pName}`, {
-                                productId: pid,
-                                sellCarton,
-                                premiumPrice,
-                                basePrice,
-                                invoice: invRef
-                            });
-                        }
-                    }
-                }
-
-                const bonus = (sellCarton * cartonQty * bonusPct) / 100;
-
-                // التحقق من حجب البونص للمندوب
-                const tr = targetRules[rep] || {};
-                const isBlocked = tr.blk === true;
-
-                const entry = {
-                    rep, ref: invRef, prod: pName, qty: cartonQty.toFixed(2),
-                    sellCarton, totalSales: sellCarton * cartonQty,
-                    tier, pct: bonusPct, bonus: isBlocked ? 0 : bonus,
-                    date: payDate, badge, isBlocked
-                };
-
-                // تصنيف حسب حالة السداد
-                if(inv.status === "Paid" && payDate) {
-                    const [py, pm] = payDate.split('-');
-                    if(py === year && pm === mon) {
-                        computed.push(entry);
-                    }
-                } else {
-                    suspended.push({...entry, date: issueDate});
-                }
-            });
+    // تجميع حسب المندوب إذا كان الفلتر "الكل"
+    if (filter === 'all') {
+        const byRep = {};
+        dataToExport.forEach(d => {
+            if (!byRep[d.rep]) byRep[d.rep] = [];
+            byRep[d.rep].push(d);
         });
 
-        console.log(`✓ تم معالجة ${computed.length} سطر محصل، ${suspended.length} سطر معلق`);
-    }
+        Object.keys(byRep).sort().forEach(rep => {
+            const repData = byRep[rep];
+            const repTotal = repData.reduce((sum, d) => sum + parseFloat(d.bonus), 0);
 
-    async function exportExcel() {
-        const month = document.getElementById('targetMonth').value;
-        if(!computed.length) return alert("لا توجد بيانات محصلة للتصدير.");
-        
-        const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('البونص المستحق');
-        
-        sheet.columns = [
-            { header: 'المندوب', key: 'rep', width: 20 },
-            { header: 'المرجع', key: 'ref', width: 15 },
-            { header: 'المنتج', key: 'prod', width: 30 },
-            { header: 'الكمية', key: 'qty', width: 12 },
-            { header: 'سعر الكرتون', key: 'price', width: 15 },
-            { header: 'الفئة', key: 'tier', width: 12 },
-            { header: 'النسبة %', key: 'pct', width: 10 },
-            { header: 'البونص', key: 'bonus', width: 12 },
-            { header: 'التاريخ', key: 'date', width: 15 }
-        ];
-        
-        const headerRow = sheet.getRow(1);
-        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
-        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-        
-        const grouped = {};
-        computed.forEach(d => {
-            if(!grouped[d.rep]) grouped[d.rep] = [];
-            grouped[d.rep].push(d);
-        });
-
-        Object.keys(grouped).sort().forEach(repName => {
-            const repData = grouped[repName];
-            const repTotal = repData.reduce((sum, d) => sum + d.bonus, 0);
-            
-            repData.forEach(data => {
-                const row = sheet.addRow({
-                    rep: data.rep, ref: data.ref, prod: data.prod, qty: data.qty,
-                    price: data.sellCarton.toFixed(2), tier: data.tier, pct: data.pct,
-                    bonus: data.bonus.toFixed(2), date: data.date
-                });
+            repData.forEach(row => {
+                const dataRow = sheet.addRow(row);
                 
                 // تلوين حسب الفئة
-                if(data.tier === "تميز") {
-                    row.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
-                } else if(data.tier === "أساسي") {
-                    row.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
-                } else {
-                    row.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8D7DA' } };
+                if (row.bonusRate === 2) {
+                    dataRow.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
+                } else if (row.bonusRate === 1) {
+                    dataRow.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
                 }
             });
-            
+
             // سطر الإجمالي
-            const totalRow = sheet.addRow({ prod: `إجمالي المندوب: ${repName}`, bonus: repTotal.toFixed(2) });
+            const totalRow = sheet.addRow({
+                productName: `إجمالي ${rep}`,
+                bonus: repTotal.toFixed(2)
+            });
             totalRow.font = { bold: true };
-            totalRow.getCell('prod').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } };
+            totalRow.getCell('productName').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } };
             totalRow.getCell('bonus').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
-            sheet.addRow([]);
+            
+            sheet.addRow([]); // سطر فارغ
         });
-
-        const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), `Bonus_Report_${month}.xlsx`);
-    }
-
-    function updateFilterDropdown() {
-        const sel = document.getElementById('creatorFilter');
-        const current = sel.value;
-        sel.innerHTML = '<option value="all">الكل (جميع المناديب)</option>';
-        creators.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
-        sel.value = current || "all";
-    }
-
-    function renderUI() {
-        const filter = document.getElementById('creatorFilter').value;
-        const mainTbody = document.getElementById('mainRows');
-        mainTbody.innerHTML = '';
-        
-        let totalSales = 0, totalBonus = 0;
-        computed.filter(d => filter === 'all' || d.rep === filter).forEach(r => {
-            totalSales += r.totalSales; 
-            totalBonus += r.bonus;
-            const blockedText = r.isBlocked ? ' <small style="color:#c0392b">(محجوب)</small>' : '';
-            mainTbody.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}${blockedText}</td><td style="font-size:0.9em">${r.prod}</td><td>${r.qty}</td><td>${r.sellCarton.toFixed(2)}</td><td><span class="badge ${r.badge}">${r.tier}</span></td><td>${r.pct}%</td><td style="font-weight:bold">${r.bonus.toFixed(2)}</td><td>${r.date}</td></tr>`;
-        });
-        document.getElementById('stat-sales').innerText = totalSales.toLocaleString();
-        document.getElementById('stat-bonus').innerText = totalBonus.toLocaleString();
-
-        const suspTbody = document.getElementById('suspRows');
-        suspTbody.innerHTML = '';
-        let totalSusp = 0;
-        suspended.filter(d => filter === 'all' || d.rep === filter).forEach(r => {
-            totalSusp += r.bonus;
-            suspTbody.innerHTML += `<tr><td>${r.ref}</td><td>${r.rep}</td><td>${r.prod}</td><td>${r.qty}</td><td>${r.date}</td><td style="color:#7f8c8d">${r.bonus.toFixed(2)}</td></tr>`;
-        });
-        document.getElementById('stat-susp-bonus').innerText = totalSusp.toLocaleString();
-        
-        renderProductRules();
-        renderTargetTable();
-        updateErrorDisplay();
-    }
-
-    function renderProductRules() {
-        const tbody = document.getElementById('prodRows');
-        tbody.innerHTML = '';
-        Object.keys(productsMap).sort((a, b) => {
-            return productsMap[a].name.localeCompare(productsMap[b].name, 'ar');
-        }).forEach(pid => {
-            const rule = productRules[pid] || {};
-            tbody.innerHTML += `<tr>
-                <td>${productsMap[pid].name}</td>
-                <td><input type="number" class="tbl-input" id="f_${pid}" value="${rule.factor||0}"></td>
-                <td><input type="number" class="tbl-input" id="pp_${pid}" value="${rule.premiumPrice||0}"></td>
-                <td><input type="number" step="0.1" class="tbl-input" id="ppct_${pid}" value="${rule.premiumPct||2}"></td>
-                <td><input type="number" class="tbl-input" id="bp_${pid}" value="${rule.basePrice||0}"></td>
-                <td><input type="number" step="0.1" class="tbl-input" id="bpct_${pid}" value="${rule.basePct||1}"></td>
-            </tr>`;
-        });
-    }
-
-    function renderTargetTable() {
-        const tbody = document.getElementById('targetRows');
-        tbody.innerHTML = '';
-        let totalReward = 0;
-        creators.forEach(rep => {
-            const tr = targetRules[rep] || {};
-            const currentSales = computed.filter(d => d.rep === rep).reduce((a, b) => a + b.totalSales, 0);
-            const isAchieved = currentSales >= (tr.amt || 0);
-            if(isAchieved && tr.rwd > 0) totalReward += tr.rwd;
-
-            tbody.innerHTML += `<tr>
-                <td>${rep}</td>
-                <td>${currentSales.toLocaleString()}</td>
-                <td><input type="number" class="tbl-input" id="ta_${rep}" value="${tr.amt||0}"></td>
-                <td><input type="number" class="tbl-input" id="tr_${rep}" value="${tr.rwd||0}"></td>
-                <td><input type="checkbox" id="tk_${rep}" ${tr.blk?'checked':''}></td>
-                <td>${isAchieved ? '<b style="color:green">تم التحقيق</b>' : '<span style="color:red">لم يحقق</span>'}</td>
-            </tr>`;
-        });
-        document.getElementById('stat-target-reward').innerText = totalReward.toLocaleString();
-    }
-
-    function applySmartRules(force=false) {
-        const auto = [
-            { keys: ["ورق كاشير", "80*70", "80x70"], pp: 69, bp: 68 },
-            { keys: ["a4", "ايه4"], pp: 58, bp: 57 },
-            { keys: ["رول تاريخ"], pp: 75, bp: 74 }
-        ];
-        Object.keys(productsMap).forEach(pid => {
-            if(!force && productRules[pid] && productRules[pid].premiumPrice) return;
-            const name = productsMap[pid].name.toLowerCase();
-            for(let a of auto) {
-                if(a.keys.some(k => name.includes(k.toLowerCase()))) {
-                    productRules[pid] = { 
-                        factor: productRules[pid]?.factor || 0, 
-                        premiumPrice: a.pp, 
-                        premiumPct: 2, 
-                        basePrice: a.bp, 
-                        basePct: 1 
-                    };
-                    break;
-                }
+    } else {
+        // تصدير لمندوب واحد فقط
+        dataToExport.forEach(row => {
+            const dataRow = sheet.addRow(row);
+            
+            if (row.bonusRate === 2) {
+                dataRow.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
+            } else if (row.bonusRate === 1) {
+                dataRow.getCell('tier').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
             }
         });
-        localStorage.setItem('pRules_v36', JSON.stringify(productRules));
-    }
 
-    function saveProductRules() {
-        Object.keys(productsMap).forEach(pid => {
-            productRules[pid] = {
-                factor: parseFloat(document.getElementById(`f_${pid}`).value) || 0,
-                premiumPrice: parseFloat(document.getElementById(`pp_${pid}`).value) || 0,
-                premiumPct: parseFloat(document.getElementById(`ppct_${pid}`).value) || 2,
-                basePrice: parseFloat(document.getElementById(`bp_${pid}`).value) || 0,
-                basePct: parseFloat(document.getElementById(`bpct_${pid}`).value) || 1
-            };
+        const total = dataToExport.reduce((sum, d) => sum + parseFloat(d.bonus), 0);
+        const totalRow = sheet.addRow({
+            productName: `الإجمالي`,
+            bonus: total.toFixed(2)
         });
-        localStorage.setItem('pRules_v36', JSON.stringify(productRules));
-        processLogic(); 
-        renderUI();
-        alert("تم حفظ إعدادات الأسعار والتحويل.");
+        totalRow.font = { bold: true };
+        totalRow.getCell('productName').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0F2' } };
+        totalRow.getCell('bonus').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } };
     }
 
-    function saveTargetRules() {
-        creators.forEach(rep => {
-            targetRules[rep] = {
-                amt: parseFloat(document.getElementById(`ta_${rep}`).value) || 0,
-                rwd: parseFloat(document.getElementById(`tr_${rep}`).value) || 0,
-                blk: document.getElementById(`tk_${rep}`).checked
-            };
-        });
-        localStorage.setItem('tRules_v36', JSON.stringify(targetRules));
-        processLogic(); 
-        renderUI();
-        alert("تم حفظ الأهداف.");
-    }
+    const buffer = await workbook.xlsx.writeBuffer();
+    const filename = filter === 'all' 
+        ? `البونص_الكل_${month}.xlsx`
+        : `البونص_${filter}_${month}.xlsx`;
+    
+    saveAs(new Blob([buffer]), filename);
+}
 
-    function exportBackup() {
-        const b = new Blob([JSON.stringify({pRules: productRules, tRules: targetRules}, null, 2)], {type: 'application/json'});
-        saveAs(b, "Bonus_System_Backup_v36.json");
-    }
+function exportSettings() {
+    const data = { settings, products };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    saveAs(blob, 'bonus_settings.json');
+}
 
-    function importBackup(e) {
-        const reader = new FileReader();
-        reader.onload = x => {
-            try {
-                const d = JSON.parse(x.target.result);
-                productRules = d.pRules || {}; 
-                targetRules = d.tRules || {};
-                localStorage.setItem('pRules_v36', JSON.stringify(productRules));
-                localStorage.setItem('tRules_v36', JSON.stringify(targetRules));
-                processLogic(); 
-                renderUI();
-                alert("تم استيراد البيانات بنجاح.");
-            } catch(err) {
-                alert("خطأ في قراءة الملف: " + err.message);
-                logError("فشل استيراد النسخة الاحتياطية", { error: err.message });
-            }
-        };
-        reader.readAsText(e.target.files[0]);
-    }
+function importSettings(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-    // تهيئة أولية
-    document.getElementById('targetMonth').value = new Date().toISOString().slice(0, 7);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            settings = data.settings || {};
+            localStorage.setItem('bonusSettings', JSON.stringify(settings));
+            renderSettings();
+            alert('✅ تم استيراد الإعدادات بنجاح');
+        } catch (error) {
+            alert('❌ خطأ في قراءة الملف');
+        }
+    };
+    reader.readAsText(file);
+}
 </script>
+
 </body>
 </html>
